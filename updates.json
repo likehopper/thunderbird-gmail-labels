@@ -11,6 +11,16 @@
               "strict_min_version": "128.0"
             }
           }
+        },
+        {
+          "version": "1.0.1",
+          "update_link": "https://github.com/likehopper/thunderbird-gmail-labels/releases/download/v1.0.1/thunderbird-gmail-labels-1.0.1.xpi",
+          "update_hash": "sha256:be7508c8efeee51e3160dd33bad06f0564af950151f8118b1c3f8abc1ba99728",
+          "applications": {
+            "gecko": {
+              "strict_min_version": "128.0"
+            }
+          }
         }
       ]
     }
