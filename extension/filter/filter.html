@@ -1,0 +1,49 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title data-i18n="filterTitle"></title>
+  <link rel="stylesheet" href="filter.css">
+</head>
+<body>
+  <h1 data-i18n="filterHeading"></h1>
+  <p id="intro"></p>
+
+  <fieldset>
+    <legend data-i18n="filterCriterion"></legend>
+    <div id="values"></div>
+    <label class="option"><input type="radio" name="value" value="keyword"> <span data-i18n="filterKeyword"></span>
+      <input id="keyword" autocomplete="off"></label>
+  </fieldset>
+
+  <fieldset>
+    <legend data-i18n="filterSearchIn"></legend>
+    <label class="inline"><input type="checkbox" name="field" value="from"> <span data-i18n="fieldFrom"></span></label>
+    <label class="inline"><input type="checkbox" name="field" value="to"> <span data-i18n="fieldTo"></span></label>
+    <label class="inline"><input type="checkbox" name="field" value="replyTo"> <span data-i18n="fieldReplyTo"></span></label>
+    <label class="inline"><input type="checkbox" name="field" value="subject"> <span data-i18n="fieldSubject"></span></label>
+  </fieldset>
+
+  <label><span data-i18n="filterQuery"></span> <input id="query" autocomplete="off" spellcheck="false"></label>
+  <p id="count" class="hint"></p>
+
+  <label><input id="archive" type="checkbox"> <span data-i18n="filterArchive"></span></label>
+
+  <fieldset>
+    <legend data-i18n="filterExisting"></legend>
+    <label><input type="radio" name="existing" value="none" checked> <span data-i18n="existingNone"></span></label>
+    <label><input type="radio" name="existing" value="inbox"> <span data-i18n="existingInbox"></span></label>
+    <label><input type="radio" name="existing" value="all"> <span data-i18n="existingAll"></span></label>
+  </fieldset>
+
+  <p class="buttons">
+    <button id="create" class="primary" data-i18n="filterCreate"></button>
+    <button id="dismiss" data-i18n="filterDismiss"></button>
+    <button id="ignore" data-i18n="filterIgnore"></button>
+  </p>
+  <p id="status"></p>
+
+  <script src="../common/i18n.js"></script>
+  <script src="filter.js"></script>
+</body>
+</html>

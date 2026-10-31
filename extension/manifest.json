@@ -1,0 +1,60 @@
+{
+  "manifest_version": 2,
+  "name": "__MSG_extName__",
+  "description": "__MSG_extDescription__",
+  "default_locale": "en",
+  "version": "1.0.0",
+  "author": "likeHopper",
+  "homepage_url": "https://github.com/likehopper/thunderbird-gmail-labels",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "gmail-labels@likehopper.github.io",
+      "strict_min_version": "128.0",
+      "update_url": "https://raw.githubusercontent.com/likehopper/thunderbird-gmail-labels/main/updates.json"
+    }
+  },
+  "icons": {
+    "32": "icons/label.svg",
+    "64": "icons/label.svg"
+  },
+  "background": {
+    "scripts": [
+      "common/i18n.js",
+      "background/gmail.js",
+      "background/offline.js",
+      "background/background.js",
+      "background/filters.js",
+      "background/diagnose.js"
+    ]
+  },
+  "browser_action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "__MSG_extName__",
+    "default_icon": "icons/label.svg"
+  },
+  "message_display_action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "__MSG_extName__",
+    "default_icon": "icons/label.svg"
+  },
+  "commands": {
+    "_execute_message_display_action": {
+      "suggested_key": { "default": "Alt+Shift+L" },
+      "description": "__MSG_commandManageLabels__"
+    }
+  },
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": true
+  },
+  "permissions": [
+    "accountsRead",
+    "messagesRead",
+    "messagesModify",
+    "messagesMove",
+    "identity",
+    "storage",
+    "https://gmail.googleapis.com/*",
+    "https://oauth2.googleapis.com/*"
+  ]
+}

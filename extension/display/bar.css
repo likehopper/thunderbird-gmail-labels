@@ -1,0 +1,162 @@
+.gml-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 10px;
+  padding: 6px 2px 8px;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.3);
+  font: 12px/1.5 system-ui, sans-serif;
+}
+
+.gml-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 8px;
+  border-radius: 10px;
+  background: #e8eaed;
+  color: #3c4043;
+  white-space: nowrap;
+}
+
+.gml-pill.gml-inbox {
+  background: #d3e3fd;
+  color: #0b57d0;
+}
+
+.gml-pill.gml-pending {
+  outline: 1px dashed currentColor;
+  outline-offset: -1px;
+  font-style: italic;
+  opacity: 0.75;
+}
+
+.gml-remove,
+.gml-refresh,
+.gml-link {
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.gml-remove {
+  padding: 0 0 0 4px;
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0.55;
+}
+
+.gml-refresh {
+  padding: 0 2px;
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0.5;
+}
+
+.gml-remove:hover,
+.gml-refresh:hover {
+  opacity: 1;
+}
+
+.gml-refresh:disabled {
+  animation: gml-spin 0.8s linear infinite;
+}
+
+@keyframes gml-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.gml-link {
+  padding: 0;
+  text-decoration: underline;
+  opacity: 0.8;
+}
+
+.gml-add {
+  position: relative;
+  display: inline-flex;
+}
+
+.gml-plus {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px dashed rgba(128, 128, 128, 0.6);
+  border-radius: 10px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.gml-plus:hover {
+  opacity: 1;
+}
+
+.gml-input {
+  width: 180px;
+  padding: 1px 8px;
+  border: 1px solid rgba(128, 128, 128, 0.6);
+  border-radius: 10px;
+  background: Field;
+  color: FieldText;
+  font: inherit;
+}
+
+.gml-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 1000;
+  min-width: 220px;
+  max-height: 280px;
+  overflow-y: auto;
+  margin: 3px 0 0;
+  padding: 3px;
+  list-style: none;
+  border: 1px solid rgba(128, 128, 128, 0.4);
+  border-radius: 6px;
+  background: Canvas;
+  color: CanvasText;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.gml-menu[hidden] {
+  display: none;
+}
+
+.gml-menu li {
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.gml-menu li:hover,
+.gml-menu li.gml-active {
+  background: rgba(128, 128, 128, 0.2);
+}
+
+.gml-note {
+  font-style: italic;
+  opacity: 0.6;
+}
+
+@media (prefers-color-scheme: dark) {
+  .gml-pill {
+    background: #3c4043;
+    color: #e8eaed;
+  }
+
+  .gml-pill.gml-inbox {
+    background: #0842a0;
+    color: #d3e3fd;
+  }
+}

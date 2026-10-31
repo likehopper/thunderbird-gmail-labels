@@ -1,0 +1,75 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title data-i18n="optTitle"></title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <h1 data-i18n="optTitle"></h1>
+  <p><span data-i18n="optIntro"></span>
+    <button class="link" data-url="https://github.com/likehopper/thunderbird-gmail-labels#troubleshooting" data-i18n="help"></button></p>
+
+  <details class="step" id="step1">
+    <summary><span data-i18n="step1Title"></span> <span class="badge"></span></summary>
+    <p data-i18n="step1Intro"></p>
+    <ol class="substeps">
+      <li><span data-i18n="s1a"></span>
+        <button class="link" data-url="https://console.cloud.google.com/projectcreate" data-i18n="open"></button></li>
+      <li><span data-i18n="s1b"></span>
+        <button class="link" data-url="https://console.cloud.google.com/apis/library/gmail.googleapis.com" data-i18n="open"></button></li>
+      <li><span data-i18n="s1c"></span>
+        <button class="link" data-url="https://console.cloud.google.com/auth/overview" data-i18n="open"></button></li>
+      <li><span data-i18n="s1d"></span>
+        <button class="link" data-url="https://console.cloud.google.com/auth/scopes" data-i18n="open"></button>
+        <div class="copyrow"><pre id="scopes"></pre><button class="copy" data-copy="scopes" data-i18n="copy"></button></div></li>
+      <li><span data-i18n="s1e"></span>
+        <button class="link" data-url="https://console.cloud.google.com/auth/audience" data-i18n="open"></button>
+        <div class="copyrow"><pre id="testUsers"></pre><button class="copy" data-copy="testUsers" data-i18n="copy"></button></div></li>
+      <li><span data-i18n="s1f"></span>
+        <button class="link" data-url="https://console.cloud.google.com/auth/clients/create" data-i18n="open"></button>
+        <div class="copyrow"><pre id="redirect"></pre><button class="copy" data-copy="redirect" data-i18n="copy"></button></div></li>
+    </ol>
+  </details>
+
+  <details class="step" id="step2">
+    <summary><span data-i18n="step2Title"></span> <span class="badge"></span></summary>
+    <p data-i18n="step2Intro"></p>
+    <label><span data-i18n="clientId"></span> <input id="clientId" autocomplete="off" spellcheck="false"></label>
+    <label><span data-i18n="clientSecret"></span> <input id="clientSecret" type="password" autocomplete="off"></label>
+    <p id="clientCheck" class="hint"></p>
+    <p><button id="save" data-i18n="save"></button> <span id="saved" class="ok"></span></p>
+  </details>
+
+  <details class="step" id="step3">
+    <summary><span data-i18n="step3Title"></span> <span class="badge"></span></summary>
+    <p data-i18n="step3Intro"></p>
+    <table>
+      <thead><tr><th data-i18n="colAccount"></th><th data-i18n="colAddress"></th><th data-i18n="colState"></th><th></th></tr></thead>
+      <tbody id="accounts"></tbody>
+    </table>
+    <p id="accountError" class="error"></p>
+  </details>
+
+  <details class="step" id="step4">
+    <summary><span data-i18n="step4Title"></span></summary>
+    <p><span data-i18n="step4Intro"></span>
+      <button class="link" data-url="https://console.cloud.google.com/auth/audience" data-i18n="open"></button></p>
+  </details>
+
+  <details class="step" id="step5">
+    <summary><span data-i18n="step5Title"></span></summary>
+    <label class="inline"><input id="showBar" type="checkbox"> <span data-i18n="showBar"></span></label>
+    <label class="inline"><input id="hideCategories" type="checkbox"> <span data-i18n="hideCategories"></span></label>
+  </details>
+
+  <details class="step" id="step6">
+    <summary><span data-i18n="step6Title"></span></summary>
+    <label class="inline"><input id="proposeFilters" type="checkbox"> <span data-i18n="proposeFilters"></span></label>
+    <p><span id="ignoredCount"></span> <button id="resetIgnored" data-i18n="resetIgnored" hidden></button></p>
+  </details>
+
+  <script src="../common/i18n.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

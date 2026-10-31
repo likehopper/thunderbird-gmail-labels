@@ -1,0 +1,135 @@
+:root {
+  color-scheme: light dark;
+}
+
+body {
+  max-width: 760px;
+  margin: 24px auto;
+  padding: 0 16px;
+  font: 14px/1.5 system-ui, sans-serif;
+}
+
+.step {
+  margin-bottom: 12px;
+  padding: 8px 14px;
+  border: 1px solid rgba(128, 128, 128, 0.35);
+  border-radius: 6px;
+}
+
+.step summary {
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.step[open] summary {
+  margin-bottom: 8px;
+}
+
+.badge {
+  margin-left: 6px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.badge.done {
+  background: #188038;
+  color: white;
+}
+
+.badge.todo {
+  background: rgba(128, 128, 128, 0.25);
+}
+
+.substeps li {
+  margin-bottom: 10px;
+}
+
+.copyrow {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.copyrow pre {
+  flex: 1;
+  margin: 0;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: rgba(128, 128, 128, 0.15);
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+label {
+  display: block;
+  margin: 8px 0;
+}
+
+label input:not([type="checkbox"]) {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: 2px;
+  padding: 4px 6px;
+}
+
+label.inline input {
+  margin-right: 6px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 4px 6px;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.3);
+  text-align: left;
+  vertical-align: top;
+}
+
+td.actions {
+  white-space: nowrap;
+}
+
+td[colspan] {
+  border-bottom: 0;
+}
+
+td[colspan]:empty {
+  padding: 0;
+}
+
+.checks {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+
+.checks .summary {
+  font-weight: 600;
+}
+
+.hint {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.ok {
+  color: #188038;
+}
+
+.warn {
+  color: #b06000;
+}
+
+.error {
+  color: #d93025;
+}
