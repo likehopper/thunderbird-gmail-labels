@@ -1,0 +1,18 @@
+{
+  "addons": {
+    "gmail-labels@likehopper.github.io": {
+      "updates": [
+        {
+          "version": "1.0.0",
+          "update_link": "https://github.com/likehopper/thunderbird-gmail-labels/releases/download/v1.0.0/thunderbird-gmail-labels-1.0.0.xpi",
+          "update_hash": "sha256:4aae1c54c8d07274f624a87bca1c8b8d0963cb5c3b8d59d252780b3cc8268322",
+          "applications": {
+            "gecko": {
+              "strict_min_version": "128.0"
+            }
+          }
+        }
+      ]
+    }
+  }
+}
