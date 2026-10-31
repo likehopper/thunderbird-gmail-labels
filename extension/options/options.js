@@ -84,6 +84,15 @@ function createAuthorizationButton(account) {
   return button;
 }
 
+/** Text and style of the status cell: an expiry date means the app is still "In testing". */
+function authorizationStatus(account) {
+  const expiresAt = account.authorizationExpiresAt;
+  if (!account.authorized) return { textContent: translate("notAuthorized"), className: "" };
+  if (expiresAt === null) return { textContent: translate("authorizedNoLimit"), className: "ok" };
+  if (expiresAt) return { textContent: translate("authorizedUntil", formatDate(expiresAt)), className: "warn" };
+  return { textContent: translate("authorized"), className: "ok" };
+}
+
 async function renderAccounts(emailToCheck = null) {
   const accounts = await send({ command: "accounts" });
   setStepStatus("step3", accounts.some(account => account.authorized));
@@ -99,8 +108,7 @@ async function renderAccounts(emailToCheck = null) {
       row.append(cell);
     }
     const statusCell = document.createElement("td");
-    statusCell.textContent = translate(account.authorized ? "authorized" : "notAuthorized");
-    statusCell.className = account.authorized ? "ok" : "";
+    Object.assign(statusCell, authorizationStatus(account));
     const actionsCell = document.createElement("td");
     actionsCell.className = "actions";
     const diagnosticRow = document.createElement("tr");

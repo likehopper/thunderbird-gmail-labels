@@ -32,6 +32,11 @@ async function diagnoseAccount(email) {
     return checks;
   }
 
+  const authorizationExpiresAt = tokens[email].refreshTokenExpiresAt;
+  if (authorizationExpiresAt === undefined) addCheck("chkExpiry", null, translate("fixExpiryUnknown"));
+  else if (authorizationExpiresAt === null) addCheck("chkExpiry", true, translate("detailNoLimit"));
+  else addCheck("chkExpiry", null, translate("fixExpiry", formatDate(authorizationExpiresAt)));
+
   try {
     const url = `${TOKEN_INFO_URL}?access_token=${encodeURIComponent(accessToken)}`;
     const tokenInfo = await (await fetch(url)).json();

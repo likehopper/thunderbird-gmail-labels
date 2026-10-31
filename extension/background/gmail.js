@@ -163,8 +163,14 @@ async function authorize(email) {
   }
   cacheAccessToken(email, tokenResponse);
 
+  // Google only sends this lifetime for time-limited tokens (app "In testing"):
+  // null means no time limit, while undefined marks an older, unknown authorization
+  const refreshTokenLifetime = tokenResponse.refresh_token_expires_in;
   const tokens = await loadStore("tokens", {});
-  tokens[email] = { refreshToken: tokenResponse.refresh_token };
+  tokens[email] = {
+    refreshToken: tokenResponse.refresh_token,
+    refreshTokenExpiresAt: refreshTokenLifetime ? Date.now() + refreshTokenLifetime * 1000 : null,
+  };
   await browser.storage.local.set({ tokens });
 }
 

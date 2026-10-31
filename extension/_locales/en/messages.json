@@ -112,6 +112,8 @@
   "colAddress": {"message": "Address"},
   "colState": {"message": "Status"},
   "authorized": {"message": "Authorized"},
+  "authorizedUntil": {"message": "Authorized until $1"},
+  "authorizedNoLimit": {"message": "Authorized, no time limit"},
   "notAuthorized": {"message": "Not authorized"},
   "authorize": {"message": "Authorize"},
   "revoke": {"message": "Revoke"},
@@ -132,6 +134,7 @@
   "chkAuthorized": {"message": "Account authorized"},
   "chkNetwork": {"message": "Connection to Google"},
   "chkToken": {"message": "Authorization valid"},
+  "chkExpiry": {"message": "Authorization duration"},
   "chkScopes": {"message": "Permissions granted"},
   "chkApi": {"message": "Gmail API reachable"},
   "chkLabels": {"message": "Labels readable"},
@@ -142,9 +145,12 @@
   "fixNetwork": {"message": "Google cannot be reached: check the network connection, then retry."},
   "fixTokenExpired": {"message": "Authorization expired or revoked (7-day limit while the app is “In testing”): click “Revoke” then “Authorize”, and publish the app (step 4)."},
   "fixTokenClient": {"message": "Google rejects the client: check the client ID and secret (step 2)."},
+  "fixExpiry": {"message": "Expires on $1: publish the app (step 4), then click “Revoke” and “Authorize”."},
+  "fixExpiryUnknown": {"message": "Unknown for this authorization: click “Revoke” then “Authorize” once to find out."},
   "fixScopes": {"message": "Missing: $1. Add them in Data access (step 1), then click “Revoke” and “Authorize” again."},
   "fixApiDisabled": {"message": "The Gmail API is not enabled in the Google Cloud project (step 1)."},
   "fixAllMail": {"message": "Subscribe to [Gmail]/All Mail (right-click the account → Subscribe…): needed to remove the label of the open folder instantly."},
   "detailLabels": {"message": "$1 personal label(s)"},
-  "detailFilters": {"message": "$1 filter(s)"}
+  "detailFilters": {"message": "$1 filter(s)"},
+  "detailNoLimit": {"message": "no 7-day limit"}
 }

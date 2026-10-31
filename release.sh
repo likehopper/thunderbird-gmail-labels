@@ -1,7 +1,8 @@
 #!/bin/sh
 # Publishes the version of extension/manifest.json: a GitHub release with the .xpi,
-# then updates.json on main (read by Thunderbird for automatic updates).
+# then updates.json on main (only read by installs of 1.0.0, which had an update_url).
 # The .xpi is published before updates.json, so a missing file is never announced.
+# The same .xpi must then be uploaded to addons.thunderbird.net, which manages updates.
 set -e
 cd "$(dirname "$0")"
 
@@ -21,4 +22,4 @@ git tag "$tag"
 git push -q origin "$tag"
 gh release create "$tag" "$xpi" --title "$version" --generate-notes
 git push -q origin main
-echo "$tag published"
+echo "$tag published: upload $xpi to addons.thunderbird.net"

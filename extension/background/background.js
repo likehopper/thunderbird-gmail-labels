@@ -335,7 +335,13 @@ async function listAccountStatuses() {
     .filter(account => account.type === "imap")
     .map(account => {
       const email = account.identities?.[0]?.email?.toLowerCase() ?? null;
-      return { id: account.id, name: account.name, email, authorized: Boolean(email && tokens[email]) };
+      return {
+        id: account.id,
+        name: account.name,
+        email,
+        authorized: Boolean(email && tokens[email]),
+        authorizationExpiresAt: tokens[email]?.refreshTokenExpiresAt,
+      };
     });
 }
 

@@ -6,6 +6,10 @@ function translate(key, ...substitutions) {
   return browser.i18n.getMessage(key, substitutions.map(String)) || key;
 }
 
+function formatDate(timestamp) {
+  return new Date(timestamp).toLocaleDateString(browser.i18n.getUILanguage(), { dateStyle: "long" });
+}
+
 function localizePage() {
   document.documentElement.lang = browser.i18n.getUILanguage();
   for (const node of document.querySelectorAll("[data-i18n]")) {

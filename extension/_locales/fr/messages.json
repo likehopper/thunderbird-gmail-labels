@@ -112,6 +112,8 @@
   "colAddress": {"message": "Adresse"},
   "colState": {"message": "État"},
   "authorized": {"message": "Autorisé"},
+  "authorizedUntil": {"message": "Autorisé jusqu'au $1"},
+  "authorizedNoLimit": {"message": "Autorisé, sans limite de durée"},
   "notAuthorized": {"message": "Non autorisé"},
   "authorize": {"message": "Autoriser"},
   "revoke": {"message": "Révoquer"},
@@ -132,6 +134,7 @@
   "chkAuthorized": {"message": "Compte autorisé"},
   "chkNetwork": {"message": "Connexion à Google"},
   "chkToken": {"message": "Autorisation valide"},
+  "chkExpiry": {"message": "Durée de l'autorisation"},
   "chkScopes": {"message": "Droits accordés"},
   "chkApi": {"message": "API Gmail accessible"},
   "chkLabels": {"message": "Libellés lisibles"},
@@ -142,9 +145,12 @@
   "fixNetwork": {"message": "Google est injoignable : vérifier la connexion réseau, puis réessayer."},
   "fixTokenExpired": {"message": "Autorisation expirée ou révoquée (limite de 7 jours tant que l'application est « En test ») : cliquer « Révoquer » puis « Autoriser », et publier l'application (étape 4)."},
   "fixTokenClient": {"message": "Google refuse le client : vérifier l'ID et le secret (étape 2)."},
+  "fixExpiry": {"message": "Expire le $1 : publier l'application (étape 4), puis cliquer « Révoquer » et « Autoriser »."},
+  "fixExpiryUnknown": {"message": "Inconnue pour cette autorisation : cliquer une fois « Révoquer » puis « Autoriser » pour le savoir."},
   "fixScopes": {"message": "Manquant : $1. Les ajouter dans Accès aux données (étape 1), puis cliquer « Révoquer » et « Autoriser »."},
   "fixApiDisabled": {"message": "L'API Gmail n'est pas activée dans le projet Google Cloud (étape 1)."},
   "fixAllMail": {"message": "S'abonner à [Gmail]/Tous les messages (clic droit sur le compte → S'abonner…) : nécessaire pour retirer instantanément le libellé du dossier ouvert."},
   "detailLabels": {"message": "$1 libellé(s) perso"},
-  "detailFilters": {"message": "$1 filtre(s)"}
+  "detailFilters": {"message": "$1 filtre(s)"},
+  "detailNoLimit": {"message": "pas de limite de 7 jours"}
 }

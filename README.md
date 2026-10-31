@@ -35,8 +35,9 @@ Download the `.xpi` file of the
 [latest release](https://github.com/likehopper/thunderbird-gmail-labels/releases/latest),
 then in Thunderbird: *Add-ons and Themes* → gear icon → *Install Add-on From File…*
 
-Thunderbird then keeps the extension up to date on its own, through
-[`updates.json`](updates.json).
+From version 1.0.1, updates are managed by
+[addons.thunderbird.net](https://addons.thunderbird.net/). Version 1.0.0 still reads
+[`updates.json`](updates.json), which moves it to 1.0.1.
 
 ## Setup
 
@@ -51,6 +52,8 @@ The setup assistant opens on first install. To open it later: *Add-ons and Theme
    click *Continue*: it is your own app. A check then runs automatically.
 4. **Publish the app** (*Audience* → *Publish app*), then revoke and authorize again.
    While the app is *In testing*, Google asks for a new authorization every 7 days.
+   Authorizations given before publishing keep that limit: the status in step 3
+   shows either the expiry date, or "no time limit".
 
 ## Filter suggestions
 
@@ -137,8 +140,10 @@ for the console messages, then
 ./release.sh   # publishes the manifest's version (from main, with a clean tree)
 ```
 
-To publish a version: raise `version` in `extension/manifest.json`, commit, then run
-`release.sh`. It needs the [GitHub CLI](https://cli.github.com/).
+To publish a version: raise `version` in `extension/manifest.json`, commit, run
+`release.sh`, then upload the same `.xpi` to addons.thunderbird.net. `release.sh`
+needs the [GitHub CLI](https://cli.github.com/). The manifest must not contain
+`update_url`: addons.thunderbird.net rejects it.
 
 Never change the extension id: updates and the OAuth redirect URI depend on it.
 

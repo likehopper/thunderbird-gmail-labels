@@ -3,14 +3,13 @@
   "name": "__MSG_extName__",
   "description": "__MSG_extDescription__",
   "default_locale": "en",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "likeHopper",
   "homepage_url": "https://github.com/likehopper/thunderbird-gmail-labels",
   "browser_specific_settings": {
     "gecko": {
       "id": "gmail-labels@likehopper.github.io",
-      "strict_min_version": "128.0",
-      "update_url": "https://raw.githubusercontent.com/likehopper/thunderbird-gmail-labels/main/updates.json"
+      "strict_min_version": "128.0"
     }
   },
   "icons": {
