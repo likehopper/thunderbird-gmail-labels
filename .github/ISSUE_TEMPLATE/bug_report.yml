@@ -1,0 +1,65 @@
+name: Bug report
+description: Something does not work as described
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before opening an issue, try the **Check** button in step 3 of the setup page,
+        and read [Troubleshooting](https://github.com/likehopper/thunderbird-gmail-labels#troubleshooting).
+
+        **This page is public.** Never post a client secret, a token, or private message content.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: What you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open a message
+        2. Click + in the label bar
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: extension-version
+    attributes:
+      label: Extension version
+      placeholder: "1.0.1"
+    validations:
+      required: true
+  - type: input
+    id: thunderbird-version
+    attributes:
+      label: Thunderbird version and operating system
+      placeholder: Thunderbird 153 on Ubuntu 24.04
+    validations:
+      required: true
+  - type: dropdown
+    id: account
+    attributes:
+      label: Account type
+      options:
+        - Gmail
+        - Google Workspace
+        - Both
+    validations:
+      required: true
+  - type: textarea
+    id: check
+    attributes:
+      label: Result of the Check button
+      description: Remove your email address if you prefer.
+  - type: textarea
+    id: console
+    attributes:
+      label: Console messages
+      description: >-
+        In `about:debugging` → *This Thunderbird* → *Inspect* on the extension.
+        Read them first, and remove anything private.
+      render: text
