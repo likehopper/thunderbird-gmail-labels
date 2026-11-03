@@ -376,7 +376,8 @@ async function menuMessage(info, tab) {
 }
 
 browser.menus.onShown.addListener(async (info, tab) => {
-  if (!info.menuIds.includes(MENU_CREATE)) return;
+  // menuIds only lists visible entries: test the context, the entries start hidden
+  if (!info.contexts.some(context => MENU_CONTEXTS.includes(context))) return;
   const visible = Boolean(await menuMessage(info, tab).catch(() => null));
   await Promise.all([MENU_CREATE, MENU_LIST].map(id => browser.menus.update(id, { visible })));
   browser.menus.refresh();
