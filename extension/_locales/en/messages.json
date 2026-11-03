@@ -193,7 +193,7 @@
   "optimizeConcurrent": {"message": "Concurrent filters"},
   "optimizeConcurrentIntro": {"message": "These filters share a term but do different things: Gmail applies all of them, so the message gets both labels or options. Merging them would change what they do: keep them if both make sense, otherwise edit or delete one."},
   "optimizeNoConcurrent": {"message": "No concurrent filters."},
-  "errProbeFailed": {"message": "Gmail refused even a short test filter: the limit could not be measured."},
+  "errProbeFailed": {"message": "Gmail refused even a short test filter, so the limit could not be measured. Gmail's answer: $1"},
   "optTitle": {"message": "Gmail Labels: setup"},
   "optIntro": {"message": "Follow the steps in order. Each step turns green once done."},
   "help": {"message": "Help and troubleshooting"},

@@ -350,6 +350,7 @@ function renderOptimizer() {
   element("limitText").textContent = queryLimit
     ? translate("optimizeLimit", `${prefix}${queryLimit.length}`, formatDate(queryLimit.measuredAt), maxMergedLength())
     : translate("optimizeNoLimit");
+  element("limitText").title = queryLimit?.refusal ?? ""; // Gmail's answer beyond the limit
   optimizationPlan = queryLimit ? optimizationGroups(filters, maxMergedLength()) : [];
   const before = optimizationPlan.reduce((total, group) => total + group.filters.length, 0);
   const after = optimizationPlan.reduce((total, group) => total + group.queries.length, 0);
@@ -382,9 +383,10 @@ async function measureLimit() {
   element("limitText").textContent = translate("optimizeMeasuring");
   const result = await send({ command: "filterQueryLimitMeasure", email });
   document.body.classList.remove("busy");
-  if (result.error) setStatus(result.error, true);
-  else queryLimit = result.limit;
+  if (!result.error) queryLimit = result.limit;
   renderOptimizer();
+  // Next to the button, where the measure was asked
+  if (result.error) element("limitText").replaceChildren(createTag(result.error, "error"));
 }
 
 async function applyOptimization() {

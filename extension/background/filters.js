@@ -329,43 +329,46 @@ const PROBE_MAX_LENGTH = 20000;
 const PROBE_PRECISION = 50;
 const PROBE_ACTION = { addLabelIds: ["STARRED"] }; // never applied: no message matches
 
-/** Search of about this length, made of addresses that cannot exist. */
+/** Search of about this length, made of addresses of a domain reserved for examples. */
 function probeQuery(length) {
   const items = [];
   for (let index = 0; `{${items.join(" ")}}`.length < length; index++) {
-    items.push(`from:probe${String(index).padStart(4, "0")}@gmail-labels.invalid`);
+    items.push(`from:probe${String(index).padStart(4, "0")}@example.com`);
   }
   return `{${items.join(" ")}}`;
 }
 
-/** True if Gmail accepts a filter with this search; the test filter is deleted at once. */
-async function probeAccepts(email, query) {
+/** Null if Gmail accepts a filter with this search (deleted at once), else its refusal. */
+async function probeRefusal(email, query) {
   let created;
   try {
     created = await createFilter(email, { query }, PROBE_ACTION);
   } catch (error) {
-    if (error.status === 400) return false;
+    if (error.status === 400) return error.message;
     throw error;
   }
   await deleteFilter(email, created.id);
-  return true;
+  return null;
 }
 
 /** Dichotomy between an accepted and a refused length; the result is kept for all accounts. */
 async function measureQueryLimit(email) {
   let accepted = 0;
   let refused = PROBE_MAX_LENGTH + 1;
+  let refusal = null;
   let length = PROBE_MIN_LENGTH;
   while (refused - accepted > PROBE_PRECISION) {
     const query = probeQuery(length);
     if (query.length >= refused) break;
-    if (await probeAccepts(email, query)) accepted = query.length;
-    else refused = query.length;
+    const message = await probeRefusal(email, query);
+    if (message === null) accepted = query.length;
+    else [refused, refusal] = [query.length, message];
+    // A short search refused: not a matter of length, Gmail's reason is shown
+    if (!accepted) throw new Error(translate("errProbeFailed", refusal));
     length = refused > PROBE_MAX_LENGTH ? Math.min(accepted * 2, PROBE_MAX_LENGTH) : Math.floor((accepted + refused) / 2);
     if (length <= accepted) break;
   }
-  if (!accepted) throw new Error(translate("errProbeFailed"));
-  const limit = { length: accepted, refused: refused > PROBE_MAX_LENGTH ? null : refused, measuredAt: Date.now() };
+  const limit = { length: accepted, refused: refused > PROBE_MAX_LENGTH ? null : refused, refusal, measuredAt: Date.now() };
   await browser.storage.local.set({ filterQueryLimit: limit });
   return limit;
 }

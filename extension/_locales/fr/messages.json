@@ -193,7 +193,7 @@
   "optimizeConcurrent": {"message": "Filtres concurrents"},
   "optimizeConcurrentIntro": {"message": "Ces filtres ont un terme en commun mais font des choses différentes : Gmail les applique tous, le message reçoit donc les deux libellés ou options. Les regrouper changerait ce qu'ils font : les garder si les deux ont un sens, sinon en modifier ou en supprimer un."},
   "optimizeNoConcurrent": {"message": "Aucun filtre concurrent."},
-  "errProbeFailed": {"message": "Gmail a refusé même un court filtre de test : la limite n'a pas pu être mesurée."},
+  "errProbeFailed": {"message": "Gmail a refusé même un court filtre de test, la limite n'a donc pas pu être mesurée. Réponse de Gmail : $1"},
   "optTitle": {"message": "Libellés Gmail : configuration"},
   "optIntro": {"message": "Suivez les étapes dans l'ordre. Chaque étape passe au vert une fois terminée."},
   "help": {"message": "Aide et dépannage"},
