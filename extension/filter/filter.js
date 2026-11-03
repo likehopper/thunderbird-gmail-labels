@@ -20,6 +20,7 @@ const MIN_SEARCH_LENGTH = 3;
 const COUNT_DELAY = 400;
 const CLOSE_DELAY = 1200;
 const WARNING_CLOSE_DELAY = 6000;
+const CONFIRM_DELAY = 4000;
 const MAX_RELATED_SHOWN = 5;
 const MAX_OVERLAPS_SHOWN = 10;
 // Checkboxes: [list of action labels, label id]
@@ -391,6 +392,7 @@ function setUpEdition() {
     element("otherActions").hidden = false;
   }
   element("existingNote").hidden = false;
+  element("delete").hidden = false;
   refreshChecks();
 }
 
@@ -448,6 +450,26 @@ async function saveFilter() {
   else showSaveResult(result, "filterCreated", "filterCreatedApplied");
 }
 
+/** Deletes on the second click, like in the filter list. */
+let deleteTimer = null;
+
+async function deleteEditedFilter() {
+  if (!deleteTimer) {
+    element("delete").textContent = translate("listConfirm");
+    deleteTimer = setTimeout(() => {
+      deleteTimer = null;
+      element("delete").textContent = translate("filterDelete");
+    }, CONFIRM_DELAY);
+    return;
+  }
+  clearTimeout(deleteTimer);
+  deleteTimer = null;
+  element("delete").textContent = translate("filterDelete");
+  if ((await runCommand("filterDeleteEdited")).error) return;
+  setStatus(translate("filterDeleted"));
+  setTimeout(closeWindow, CLOSE_DELAY);
+}
+
 function setUpListeners() {
   const keywordCheckbox = document.querySelector("input[value=keyword]");
   element("keyword").addEventListener("input", () => {
@@ -467,6 +489,7 @@ function setUpListeners() {
   }
   element("analyze").addEventListener("click", analyzeOverlaps);
   element("create").addEventListener("click", saveFilter);
+  element("delete").addEventListener("click", deleteEditedFilter);
   element("ignore").addEventListener("click", async () => {
     if (!(await runCommand("filterIgnoreFolder")).error) closeWindow();
   });

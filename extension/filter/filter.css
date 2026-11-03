@@ -80,6 +80,11 @@ label.inline {
   font-weight: 600;
 }
 
+.danger {
+  margin-left: auto;
+  color: #d93025;
+}
+
 .error {
   color: #d93025;
 }

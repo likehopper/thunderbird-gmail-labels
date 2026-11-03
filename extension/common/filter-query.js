@@ -155,6 +155,23 @@ function findRelatedFilters(filters, criteria, action, ignoredFilterId = null) {
   }).sort((first, second) => ranks[first.kind] - ranks[second.kind]);
 }
 
+/**
+ * True when a term of the filter matches these message addresses ({ from, to, replyTo }
+ * and subject). Exact for OR searches, approximate otherwise (any term is enough).
+ */
+function filterMatchesMessage(filter, { from, to, replyTo, subject = "" }) {
+  const addressesByOperator = { from, to, cc: to, replyto: replyTo };
+  const allAddresses = [...from, ...to, ...replyTo];
+  const lowerSubject = subject.toLowerCase();
+  return searchTerms(editableQuery(filter.criteria)).some(({ field, value, negated }) => {
+    if (negated) return false;
+    if (field === "subject") return lowerSubject.includes(value);
+    const addresses = field ? addressesByOperator[field] : allAddresses;
+    return Boolean(addresses?.some(address => valueCovers(value, address)) ||
+      (!field && lowerSubject.includes(value)));
+  });
+}
+
 const orSearchItems = query => {
   const search = query.trim();
   return (search.startsWith("{") ? search.slice(1, -1) : search).match(/[^\s"]*"[^"]*"|\S+/g) ?? [];

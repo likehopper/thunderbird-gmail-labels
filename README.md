@@ -109,8 +109,12 @@ forwarding), and export them as JSON.
 - **Edit** reuses the filter window. Gmail cannot update a filter: the extension
   creates the new one, then deletes the old one, so the filter gets a new id. Criteria
   and actions the window does not show are kept.
+- *Edit a Gmail filter* in the context menu of a message lists the filters matching its
+  addresses or subject (exact for OR searches, approximate otherwise) and opens one in
+  the same window.
 - **Delete** asks to click twice, and can be undone from the page while it stays open.
-  Deleting a selection first downloads a JSON copy of it.
+  Deleting a selection first downloads a JSON copy of it. The edition window can also
+  delete its filter (twice too, without undo).
 - Changing or deleting a filter does not change messages already filed.
 - Offline, the last known list is shown read-only.
 
