@@ -55,6 +55,8 @@
   "filterHeading": {"message": "Create a Gmail filter?"},
   "filterIntro": {"message": "“$1”$2 was filed under “$3”. Automatically label similar messages?"},
   "filterIntroMore": {"message": " (and $1 other(s))"},
+  "filterIntroMessage": {"message": "Filter based on “$1”."},
+  "menuCreateFilter": {"message": "Create a Gmail filter…"},
   "noSubject": {"message": "(no subject)"},
   "filterCriterion": {"message": "Criterion"},
   "filterKeyword": {"message": "Keyword"},

@@ -70,9 +70,12 @@ The setup assistant opens on first install. To open it later: *Add-ons and Theme
 ## Filter suggestions
 
 Moving a message to a label's folder, or adding a personal label from the bar or the
-button, opens a "Create a Gmail filter?" window:
+button, opens a "Create a Gmail filter?" window. The same window opens from
+*Create a Gmail filter…* in the context menu of a message (message list or message
+itself), with the label of its folder preselected:
 
-- **Criterion**: an address or a domain of the message, or a free keyword.
+- **Criterion**: addresses or domains of the message, or free keywords separated by
+  `|`. Several checked values are combined with OR.
 - **Search in**: From, To / Cc, Reply-to and/or Subject. Several fields are combined
   with OR, written `{a b}` by Gmail's search syntax. Reply-to uses the `replyto:`
   operator, which Google does not document but Gmail recognizes.
@@ -97,7 +100,8 @@ again* can be reset in the setup page.
 
 ## Managing filters
 
-*Manage Gmail filters* (in the popup and in the setup page) lists the filters of an
+*Manage Gmail filters* (in the popup, the setup page and the context menu of a
+message) lists the filters of an
 account, with their label, criteria, actions and number of messages. You can search,
 sort and filter them by label, action, field or state (duplicate, deleted label,
 forwarding), and export them as JSON.
@@ -135,6 +139,7 @@ server, and no analytics.
 | `accountsRead`, `messagesRead` | Find the displayed message and its account |
 | `messagesModify` | Add the label bar to the message display |
 | `messagesMove` | Remove the label of the open folder at once |
+| `menus` | Filter entries in the context menu of a message |
 | `identity`, `storage` | Sign in to Google, keep settings and offline data |
 
 The refresh token and client secret are stored **unencrypted** in your Thunderbird

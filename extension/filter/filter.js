@@ -1,6 +1,7 @@
 /**
- * Gmail filter window, in three modes: "suggest" (opened after a message is moved to a
- * label folder or a label is added), "new" and "edit" (opened from the filter list).
+ * Gmail filter window, in four modes: "suggest" (opened after a message is moved to a
+ * label folder or a label is added), "message" (context menu of a message), "new" and
+ * "edit" (opened from the filter list).
  * The criterion (address, domain or keyword) is searched in the checked fields; the
  * resulting Gmail search stays editable. Existing filters are compared as you type.
  */
@@ -344,14 +345,19 @@ function fillActionControls(action, labelId) {
   }
 }
 
+/** After a move or a label ("suggest"), or from the context menu of a message ("message"). */
 function setUpSuggestion() {
-  const otherMessages = proposal.messageCount > 1
-    ? translate("filterIntroMore", proposal.messageCount - 1)
-    : "";
-  element("intro").textContent = translate("filterIntro",
-    proposal.subject || translate("noSubject"), otherMessages, proposal.labelName);
+  const subject = proposal.subject || translate("noSubject");
+  if (proposal.mode === "suggest") {
+    const otherMessages = proposal.messageCount > 1
+      ? translate("filterIntroMore", proposal.messageCount - 1)
+      : "";
+    element("intro").textContent = translate("filterIntro", subject, otherMessages, proposal.labelName);
+    element("ignore").hidden = false;
+  } else {
+    element("intro").textContent = translate("filterIntroMessage", subject);
+  }
   element("intro").hidden = false;
-  element("ignore").hidden = false;
 
   const candidates = buildCandidates(proposal.addresses);
   renderCandidates(candidates);
@@ -485,7 +491,7 @@ function setUpListeners() {
   const isEdition = proposal.mode === "edit";
   const action = proposal.filter?.action ?? {};
   element("heading").textContent = translate(
-    isEdition ? "filterEditHeading" : proposal.mode === "new" ? "filterNewHeading" : "filterHeading");
+    isEdition ? "filterEditHeading" : proposal.mode === "suggest" ? "filterHeading" : "filterNewHeading");
   document.title = element("heading").textContent;
   element("create").textContent = translate(isEdition ? "filterSave" : "filterCreate");
   if (proposal.mode !== "suggest") element("dismiss").textContent = translate("filterClose");

@@ -3,7 +3,8 @@
  * suggests (filter/filter.html window) creating the equivalent Gmail filter: an
  * address, a domain or a keyword, searched in From, To/Cc, Reply-to and/or Subject.
  * Suggests nothing if an existing filter already adds this label for this sender.
- * The same window creates or edits filters from the filter list (filter-list/).
+ * The same window creates or edits filters from the filter list (filter-list/), and
+ * creates one from the context menu of a message.
  */
 const MAX_COUNTED_MESSAGES = 500;
 const MAX_EXISTING_MESSAGES_UPDATED = 5000;
@@ -115,6 +116,33 @@ async function proposeFilter({ message, email, labelsById, labelId, ignoreKey, m
     labelName: labelsById.get(labelId).name,
     subject: message.subject,
     messageCount,
+    addresses,
+    preferDomain,
+    filters,
+    labels: [...labelsById.values()],
+  });
+  await showProposalWindow(proposalId);
+}
+
+/** From the context menu: the same choices as a suggestion, the label of the folder preselected. */
+async function openFilterFormForMessage(message, email) {
+  const [filters, labelsById, addresses] = await Promise.all([
+    listFilters(email).catch(error => {
+      if (error instanceof AuthError) return []; // the window will show the error
+      throw error;
+    }),
+    listLabels(email),
+    readMessageAddresses(message, email),
+  ]);
+  const { preferDomain = false } = await loadStore("settings", {});
+  const folderLabel = labelsById.get(folderLabelId(message.folder, labelsById));
+  const proposalId = crypto.randomUUID();
+  proposals.clear();
+  proposals.set(proposalId, {
+    mode: "message",
+    email,
+    labelId: folderLabel?.type === "user" ? folderLabel.id : null,
+    subject: message.subject,
     addresses,
     preferDomain,
     filters,
@@ -326,6 +354,44 @@ async function openFilterList(email) {
 
 browser.tabs.onRemoved.addListener(tabId => {
   if (tabId === filterListTabId) filterListTabId = null;
+});
+
+// Context menu of a message, in the message list or the message itself
+const MENU_CREATE = "filterCreate";
+const MENU_LIST = "filterList";
+const MENU_CONTEXTS = ["message_list", "page"];
+
+browser.menus.create({ id: MENU_CREATE, title: translate("menuCreateFilter"), contexts: MENU_CONTEXTS, visible: false });
+browser.menus.create({ id: MENU_LIST, title: translate("manageFilters"), contexts: MENU_CONTEXTS, visible: false });
+
+/** The right-clicked message with its account address, or null if the account is not authorized. */
+async function menuMessage(info, tab) {
+  const message = info.selectedMessages?.messages?.[0] ??
+    (tab ? await getDisplayedMessage(tab.id).catch(() => null) : null);
+  if (!message?.folder) return null;
+  const account = await browser.accounts.get(message.folder.accountId);
+  const email = account?.type === "imap" && account.identities?.[0]?.email?.toLowerCase();
+  if (!email || !(await loadStore("tokens", {}))[email]) return null;
+  return { message, email };
+}
+
+browser.menus.onShown.addListener(async (info, tab) => {
+  if (!info.menuIds.includes(MENU_CREATE)) return;
+  const visible = Boolean(await menuMessage(info, tab).catch(() => null));
+  await Promise.all([MENU_CREATE, MENU_LIST].map(id => browser.menus.update(id, { visible })));
+  browser.menus.refresh();
+});
+
+browser.menus.onClicked.addListener(async (info, tab) => {
+  if (info.menuItemId !== MENU_CREATE && info.menuItemId !== MENU_LIST) return;
+  try {
+    const target = await menuMessage(info, tab);
+    if (!target) return;
+    if (info.menuItemId === MENU_LIST) await openFilterList(target.email);
+    else await openFilterFormForMessage(target.message, target.email);
+  } catch (error) {
+    console.warn("Gmail Labels: context menu failed", error);
+  }
 });
 
 const toErrorResult = error => ({ error: error.message });

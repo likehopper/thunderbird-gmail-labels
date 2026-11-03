@@ -55,6 +55,8 @@
   "filterHeading": {"message": "Créer un filtre Gmail ?"},
   "filterIntro": {"message": "« $1 »$2 a été classé dans « $3 ». Classer automatiquement les messages semblables avec ce libellé ?"},
   "filterIntroMore": {"message": " (et $1 autre(s))"},
+  "filterIntroMessage": {"message": "Filtre à partir de « $1 »."},
+  "menuCreateFilter": {"message": "Créer un filtre Gmail…"},
   "noSubject": {"message": "(sans objet)"},
   "filterCriterion": {"message": "Critère"},
   "filterKeyword": {"message": "Mot clé"},
