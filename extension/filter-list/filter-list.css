@@ -102,6 +102,44 @@ td.buttons {
   font-weight: 600;
 }
 
+#optimizer {
+  margin-bottom: 16px;
+  padding: 4px 12px 8px;
+  border: 1px solid rgba(128, 128, 128, 0.4);
+  border-radius: 6px;
+}
+
+#optimizer h2 {
+  font-size: 16px;
+}
+
+#optimizer h3 {
+  font-size: 14px;
+}
+
+#groups,
+#concurrents {
+  padding-left: 0;
+  list-style: none;
+}
+
+#groups > li,
+#concurrents > li {
+  margin-bottom: 6px;
+}
+
+#groups details {
+  margin: 2px 0 0 24px;
+}
+
+#groups ul {
+  margin: 2px 0;
+}
+
+.hint {
+  opacity: 0.75;
+}
+
 .warning {
   color: #b06000;
 }

@@ -177,14 +177,93 @@ const orSearchItems = query => {
   return (search.startsWith("{") ? search.slice(1, -1) : search).match(/[^\s"]*"[^"]*"|\S+/g) ?? [];
 };
 
+const isPlainOrSearch = search => isOrSearch(search) &&
+  (/^\{[^{}]*\}$/.test(search.trim()) || orSearchItems(search).length === 1);
+
+/** Only a plain OR search, without other criteria, can be merged with another one. */
+function isMergeableFilter(filter) {
+  const { query, ...otherFilterCriteria } = filter.criteria ?? {};
+  return Boolean(query) && !Object.keys(otherFilterCriteria).length && isPlainOrSearch(query);
+}
+
+/** Items without duplicates nor those covered by another item of the same field (its domain). */
+function withoutRedundantItems(items) {
+  const unique = [...new Map(items.map(item => [item.toLowerCase(), item])).values()];
+  const terms = unique.map(item => searchTerms(item)[0]);
+  return unique.filter((item, index) => !terms.some((other, otherIndex) => otherIndex !== index &&
+    other && terms[index] && other.field === terms[index].field && other.value !== terms[index].value &&
+    valueCovers(other.value, terms[index].value)));
+}
+
+/** OR searches of at most maxLength characters holding all the items. */
+function splitOrSearch(items, maxLength) {
+  const queries = [];
+  let current = [];
+  const asQuery = list => list.length > 1 ? `{${list.join(" ")}}` : list[0];
+  for (const item of items) {
+    if (current.length && asQuery([...current, item]).length > maxLength) {
+      queries.push(asQuery(current));
+      current = [];
+    }
+    current.push(item);
+  }
+  if (current.length) queries.push(asQuery(current));
+  return queries;
+}
+
+/**
+ * Filters doing exactly the same thing (same action key) merged into as few OR searches
+ * as maxLength allows: { action, filters, queries, removedItems }, only when it saves a
+ * filter or a redundant term.
+ */
+function optimizationGroups(filters, maxLength) {
+  const filtersByAction = new Map();
+  for (const filter of filters.filter(isMergeableFilter)) {
+    const key = actionKey(filter.action);
+    filtersByAction.set(key, [...(filtersByAction.get(key) ?? []), filter]);
+  }
+  return [...filtersByAction.values()].flatMap(group => {
+    const allItems = group.flatMap(filter => orSearchItems(filter.criteria.query));
+    const items = withoutRedundantItems(allItems);
+    const queries = splitOrSearch(items, maxLength);
+    const removedItems = allItems.length - items.length;
+    if (queries.length >= group.length && !removedItems) return [];
+    return [{ action: group[0].action, filters: group, queries, removedItems }];
+  });
+}
+
+/**
+ * Filters sharing a term but doing different things: Gmail applies both, so the
+ * message gets both actions. [{ filters: [first, second], values }]
+ */
+function concurrentFilters(filters) {
+  const entries = filters.map(filter => ({
+    filter,
+    key: actionKey(filter.action),
+    terms: searchTerms(editableQuery(filter.criteria)).filter(term => !term.negated),
+  }));
+  const pairs = [];
+  entries.forEach((first, index) => {
+    for (const second of entries.slice(index + 1)) {
+      if (first.key === second.key) continue;
+      const values = new Set();
+      for (const term of first.terms) {
+        for (const other of second.terms) {
+          if (termsOverlap(term, other)) values.add(term.value.length <= other.value.length ? term.value : other.value);
+        }
+      }
+      if (values.size) pairs.push({ filters: [first.filter, second.filter], values: [...values] });
+    }
+  });
+  return pairs;
+}
+
 /** The search of this filter extended with a new search, or null if they can't be merged. */
 function mergedQuery(filter, query, action) {
   const { query: existingQuery, ...otherExistingCriteria } = filter.criteria ?? {};
   if (!existingQuery || Object.keys(otherExistingCriteria).length) return null;
   if (actionKey(filter.action) !== actionKey(action)) return null;
-  const isPlainSearch = search => /^\{[^{}]*\}$/.test(search.trim()) || orSearchItems(search).length === 1;
-  if (!isOrSearch(existingQuery) || !isOrSearch(query)) return null;
-  if (!isPlainSearch(existingQuery) || !isPlainSearch(query)) return null;
+  if (!isPlainOrSearch(existingQuery) || !isPlainOrSearch(query)) return null;
   const items = [...new Set([...orSearchItems(existingQuery), ...orSearchItems(query)])];
   return items.length > 1 ? `{${items.join(" ")}}` : items[0];
 }

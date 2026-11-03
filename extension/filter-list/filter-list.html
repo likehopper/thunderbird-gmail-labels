@@ -12,7 +12,23 @@
     <span id="total"></span>
     <button id="new" class="primary" data-i18n="listNew"></button>
     <button id="export" data-i18n="listExport"></button>
+    <button id="optimize" data-i18n="listOptimize"></button>
   </header>
+
+  <section id="optimizer" hidden>
+    <h2 data-i18n="optimizeTitle"></h2>
+    <p class="hint" data-i18n="optimizeIntro"></p>
+    <p><span id="limitText"></span> <button id="measure" data-i18n="optimizeMeasure"></button></p>
+    <p id="optimizeSummary"></p>
+    <ul id="groups"></ul>
+    <p class="actions">
+      <button id="applyOptimize" class="primary" data-i18n="optimizeApply"></button>
+      <button id="closeOptimizer" data-i18n="filterClose"></button>
+    </p>
+    <h3 data-i18n="optimizeConcurrent"></h3>
+    <p class="hint" data-i18n="optimizeConcurrentIntro"></p>
+    <ul id="concurrents"></ul>
+  </section>
 
   <div id="filters">
     <input id="search" type="search" data-i18n-placeholder="listSearch" autocomplete="off">

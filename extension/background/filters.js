@@ -323,6 +323,89 @@ async function deleteEditedFilter(proposalId) {
   return {};
 }
 
+// Measure of the longest search Gmail accepts in a filter
+const PROBE_MIN_LENGTH = 200;
+const PROBE_MAX_LENGTH = 20000;
+const PROBE_PRECISION = 50;
+const PROBE_ACTION = { addLabelIds: ["STARRED"] }; // never applied: no message matches
+
+/** Search of about this length, made of addresses that cannot exist. */
+function probeQuery(length) {
+  const items = [];
+  for (let index = 0; `{${items.join(" ")}}`.length < length; index++) {
+    items.push(`from:probe${String(index).padStart(4, "0")}@gmail-labels.invalid`);
+  }
+  return `{${items.join(" ")}}`;
+}
+
+/** True if Gmail accepts a filter with this search; the test filter is deleted at once. */
+async function probeAccepts(email, query) {
+  let created;
+  try {
+    created = await createFilter(email, { query }, PROBE_ACTION);
+  } catch (error) {
+    if (error.status === 400) return false;
+    throw error;
+  }
+  await deleteFilter(email, created.id);
+  return true;
+}
+
+/** Dichotomy between an accepted and a refused length; the result is kept for all accounts. */
+async function measureQueryLimit(email) {
+  let accepted = 0;
+  let refused = PROBE_MAX_LENGTH + 1;
+  let length = PROBE_MIN_LENGTH;
+  while (refused - accepted > PROBE_PRECISION) {
+    const query = probeQuery(length);
+    if (query.length >= refused) break;
+    if (await probeAccepts(email, query)) accepted = query.length;
+    else refused = query.length;
+    length = refused > PROBE_MAX_LENGTH ? Math.min(accepted * 2, PROBE_MAX_LENGTH) : Math.floor((accepted + refused) / 2);
+    if (length <= accepted) break;
+  }
+  if (!accepted) throw new Error(translate("errProbeFailed"));
+  const limit = { length: accepted, refused: refused > PROBE_MAX_LENGTH ? null : refused, measuredAt: Date.now() };
+  await browser.storage.local.set({ filterQueryLimit: limit });
+  return limit;
+}
+
+/**
+ * Replaces filters doing the same thing by the merged ones. Checks first that they did
+ * not change elsewhere; if a creation fails, the filters already created are deleted.
+ */
+async function applyOptimizationGroup(email, { filterIds, queries }) {
+  const current = await listFilters(email);
+  const group = filterIds.map(id => current.find(filter => filter.id === id));
+  if (group.some(filter => !filter)) throw new Error(translate("errFilterChanged"));
+  const action = group[0].action;
+  if (group.some(filter => actionKey(filter.action) !== actionKey(action))) throw new Error(translate("errFilterChanged"));
+  // A merged search equal to one of the group is kept: Gmail refuses an identical filter
+  const reused = new Set();
+  const created = [];
+  try {
+    for (const query of queries) {
+      const same = group.find(filter => !reused.has(filter.id) && searchKey(filter.criteria.query) === searchKey(query));
+      if (same) reused.add(same.id);
+      else created.push(await createFilter(email, { query }, action));
+    }
+  } catch (error) {
+    await Promise.all(created.map(filter => deleteFilter(email, filter.id).catch(() => {})));
+    throw error;
+  }
+  const kept = [];
+  for (const filter of group.filter(entry => !reused.has(entry.id))) {
+    try {
+      await deleteFilter(email, filter.id);
+    } catch (error) {
+      if (error instanceof AuthError) throw error;
+      kept.push(filter.id);
+    }
+  }
+  notifyFiltersChanged(email);
+  return { created: created.length, deleted: group.length - reused.size - kept.length, kept };
+}
+
 async function ignoreProposalFolder(proposalId) {
   const { ignoreKey } = getProposal(proposalId);
   const settings = await loadStore("settings", {});
@@ -502,6 +585,12 @@ browser.runtime.onMessage.addListener(request => {
       menuFiltersCache.delete(request.email);
       return createFilter(request.email, request.filter.criteria, request.filter.action)
         .then(() => ({}), toErrorResult);
+    case "filterQueryLimit":
+      return loadStore("filterQueryLimit", null).then(limit => ({ limit }), toErrorResult);
+    case "filterQueryLimitMeasure":
+      return measureQueryLimit(request.email).then(limit => ({ limit }), toErrorResult);
+    case "filterOptimizeGroup":
+      return applyOptimizationGroup(request.email, request).catch(toErrorResult);
     case "filterDeleteEdited":
       return deleteEditedFilter(request.proposalId).catch(toErrorResult);
   }

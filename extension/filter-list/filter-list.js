@@ -1,6 +1,7 @@
 /**
  * All the Gmail filters of an account: search, sort, delete with undo, and opens the
  * filter window to create or edit one. Message counts load as rows become visible.
+ * The optimizer merges the filters doing the same thing and lists the concurrent ones.
  */
 const element = id => document.getElementById(id);
 const send = request => browser.runtime.sendMessage(request);
@@ -282,6 +283,142 @@ async function restoreDeletedFilters() {
   await loadFilters();
 }
 
+// Optimizer: merges the filters doing the same thing, lists the concurrent ones
+const LIMIT_MARGIN = 0.9; // room left to extend a merged filter later
+const MAX_CONCURRENTS_SHOWN = 100;
+let queryLimit = null;
+let optimizationPlan = [];
+
+const maxMergedLength = () => Math.floor(queryLimit.length * LIMIT_MARGIN);
+
+function describeAction(action) {
+  const names = Object.keys(ACTION_TESTS).filter(name => ACTION_TESTS[name](action))
+    .map(name => translate(`listAction_${name}`));
+  const labels = userLabelIds(action).map(labelName).join(", ") || translate("filterNoLabel");
+  return names.length ? `${labels} (${names.join(", ")})` : labels;
+}
+
+function createQueryList(queries) {
+  const list = document.createElement("ul");
+  list.append(...queries.map(query => {
+    const entry = document.createElement("li");
+    entry.append(createTag(query, "query"));
+    return entry;
+  }));
+  return list;
+}
+
+function createGroupItem(group) {
+  const entry = document.createElement("li");
+  const label = document.createElement("label");
+  const checkbox = document.createElement("input");
+  checkbox.type = "checkbox";
+  checkbox.checked = true;
+  group.checkbox = checkbox;
+  const removed = group.removedItems ? ` · ${translate("optimizeRemoved", group.removedItems)}` : "";
+  label.append(checkbox, ` ${describeAction(group.action)} : `,
+    translate("optimizeGroup", group.filters.length, group.queries.length) + removed);
+  const details = document.createElement("details");
+  const summary = document.createElement("summary");
+  summary.textContent = translate("optimizeDetails");
+  const before = document.createElement("strong");
+  before.textContent = translate("optimizeBefore");
+  const after = document.createElement("strong");
+  after.textContent = translate("optimizeAfter");
+  details.append(summary, before, createQueryList(group.filters.map(filter => filter.criteria.query)),
+    after, createQueryList(group.queries));
+  entry.append(label, details);
+  return entry;
+}
+
+function createConcurrentItem({ filters: pair, values }) {
+  const entry = document.createElement("li");
+  entry.append(`${values.join(", ")} : `);
+  pair.forEach((filter, index) => {
+    const openButton = document.createElement("button");
+    openButton.textContent = translate("filterOpen");
+    openButton.addEventListener("click", () => openForm(filter.id));
+    entry.append(index ? " ↔ " : "", describeAction(filter.action), " ", createTag(fullQuery(filter.criteria), "query"),
+      " ", openButton);
+  });
+  return entry;
+}
+
+function renderOptimizer() {
+  if (element("optimizer").hidden) return;
+  const prefix = queryLimit && !queryLimit.refused ? "≥ " : "";
+  element("limitText").textContent = queryLimit
+    ? translate("optimizeLimit", `${prefix}${queryLimit.length}`, formatDate(queryLimit.measuredAt), maxMergedLength())
+    : translate("optimizeNoLimit");
+  optimizationPlan = queryLimit ? optimizationGroups(filters, maxMergedLength()) : [];
+  const before = optimizationPlan.reduce((total, group) => total + group.filters.length, 0);
+  const after = optimizationPlan.reduce((total, group) => total + group.queries.length, 0);
+  element("optimizeSummary").textContent = !queryLimit ? ""
+    : optimizationPlan.length ? translate("optimizeSummary", optimizationPlan.length, before, after)
+      : translate("optimizeNone");
+  element("groups").replaceChildren(...optimizationPlan.map(createGroupItem));
+  element("applyOptimize").hidden = !optimizationPlan.length;
+
+  const concurrents = concurrentFilters(filters);
+  element("concurrents").replaceChildren(...concurrents.slice(0, MAX_CONCURRENTS_SHOWN).map(createConcurrentItem));
+  if (!concurrents.length) element("concurrents").textContent = translate("optimizeNoConcurrent");
+  else if (concurrents.length > MAX_CONCURRENTS_SHOWN) {
+    const more = document.createElement("li");
+    more.className = "hint";
+    more.textContent = translate("relatedMore", concurrents.length - MAX_CONCURRENTS_SHOWN);
+    element("concurrents").append(more);
+  }
+}
+
+async function openOptimizer() {
+  element("optimizer").hidden = false;
+  const result = await send({ command: "filterQueryLimit" });
+  queryLimit = result.limit ?? null;
+  renderOptimizer();
+}
+
+async function measureLimit() {
+  document.body.classList.add("busy");
+  element("limitText").textContent = translate("optimizeMeasuring");
+  const result = await send({ command: "filterQueryLimitMeasure", email });
+  document.body.classList.remove("busy");
+  if (result.error) setStatus(result.error, true);
+  else queryLimit = result.limit;
+  renderOptimizer();
+}
+
+async function applyOptimization() {
+  const chosen = optimizationPlan.filter(group => group.checkbox.checked);
+  if (!chosen.length) return;
+  exportFilters(filters); // a copy of everything before
+  document.body.classList.add("busy");
+  setStatus();
+  let created = 0;
+  let deleted = 0;
+  const kept = [];
+  const errors = [];
+  for (const group of chosen) {
+    const result = await send({
+      command: "filterOptimizeGroup",
+      email,
+      filterIds: group.filters.map(filter => filter.id),
+      queries: group.queries,
+    });
+    if (result.error) {
+      errors.push(`${describeAction(group.action)} : ${result.error}`);
+      continue;
+    }
+    created += result.created;
+    deleted += result.deleted;
+    kept.push(...result.kept);
+  }
+  document.body.classList.remove("busy");
+  showNotice([translate("optimizeDone", created, deleted),
+    kept.length ? translate("optimizeKept", kept.length) : ""].filter(Boolean).join(" "), false);
+  if (errors.length) setStatus(errors.join(" — "), true);
+  await loadFilters();
+}
+
 function findDuplicateIds() {
   const idsByKey = new Map();
   for (const filter of filters) {
@@ -318,8 +455,11 @@ async function loadFilters() {
   }
   element("offline").hidden = !isStale;
   element("new").disabled = isStale;
+  element("optimize").disabled = isStale;
+  if (isStale) element("optimizer").hidden = true;
   fillFilterSelects();
   render();
+  renderOptimizer();
 }
 
 async function selectAccount(newEmail) {
@@ -337,6 +477,10 @@ function setUpListeners() {
   element("new").addEventListener("click", () => openForm());
   element("export").addEventListener("click", () => exportFilters(filters));
   element("undo").addEventListener("click", restoreDeletedFilters);
+  element("optimize").addEventListener("click", openOptimizer);
+  element("closeOptimizer").addEventListener("click", () => (element("optimizer").hidden = true));
+  element("measure").addEventListener("click", measureLimit);
+  createConfirmedButton("optimizeApply", applyOptimization, element("applyOptimize"));
   createConfirmedButton("listDeleteSelected", () => {
     const selectedFilters = filters.filter(filter => selectedIds.has(filter.id));
     exportFilters(selectedFilters); // a copy before a deletion in bulk

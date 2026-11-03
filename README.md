@@ -116,6 +116,14 @@ forwarding), and export them as JSON.
   Deleting a selection first downloads a JSON copy of it. The edition window can also
   delete its filter (twice too, without undo).
 - Changing or deleting a filter does not change messages already filed.
+- **Optimize** merges the filters doing exactly the same thing (label, category,
+  options, forwarding) with a plain OR search into as few filters as possible, without
+  the terms already covered by a domain of the same field: they still match the same
+  messages. Each group can be unchecked, and a JSON copy of all the filters is
+  downloaded first. The longest search Gmail accepts is measured once, with test
+  filters matching no message that are deleted at once; merged searches keep 10% of
+  it free to be extended later. The same panel lists the *concurrent filters*: they
+  share a term but do different things, so a message gets both.
 - Offline, the last known list is shown read-only.
 
 ## Offline mode
