@@ -3,16 +3,22 @@
  * suggests (filter/filter.html window) creating the equivalent Gmail filter: an
  * address, a domain or a keyword, searched in From, To/Cc, Reply-to and/or Subject.
  * Suggests nothing if an existing filter already adds this label for this sender.
+ * The same window creates or edits filters from the filter list (filter-list/).
  */
 const MAX_COUNTED_MESSAGES = 500;
 const MAX_EXISTING_MESSAGES_UPDATED = 5000;
+const SAMPLE_SIZE = 50;
+const SAMPLE_REQUESTS_AT_ONCE = 10;
+const PREVIEW_SIZE = 5;
+const OVERLAP_SEARCHES_AT_ONCE = 5;
 
 const proposals = new Map(); // proposal id -> proposal (only one at a time)
 const dismissedProposals = new Set(); // "Not now" keys, for the session
 let proposalWindowId = null;
+let filterListTabId = null;
 
 const folderKey = folder => `${folder.accountId}|${folder.path}`;
-const domainOf = address => address.slice(address.indexOf("@") + 1);
+const hasOpenEditor = () => [...proposals.values()].some(proposal => proposal.mode !== "suggest");
 
 function extractAddresses(headerValues) {
   const addresses = new Set();
@@ -64,13 +70,12 @@ async function proposeFilterAfterMove(messagesBefore, messagesAfter) {
     labelsById,
     labelId,
     ignoreKey: folderKey(targetFolder),
-    fromInbox: sourceFolder.specialUse?.includes("inbox") ?? false,
     messageCount: messagesAfter.length,
   });
 }
 
 /** Label added from the bar or the button: same suggestion as for a move. */
-async function proposeFilterForLabel(message, email, labelId, fromInbox) {
+async function proposeFilterForLabel(message, email, labelId) {
   const settings = await loadStore("settings", {});
   if (settings.proposeFilters === false) return;
   const labelsById = await listLabels(email);
@@ -79,10 +84,11 @@ async function proposeFilterForLabel(message, email, labelId, fromInbox) {
   // Same key as the label's folder, so "don't suggest again" applies to both cases
   const ignoreKey = `${message.folder.accountId}|/${label.name}`;
   if ((settings.ignoredFolders ?? []).includes(ignoreKey)) return;
-  await proposeFilter({ message, email, labelsById, labelId, ignoreKey, fromInbox, messageCount: 1 });
+  await proposeFilter({ message, email, labelsById, labelId, ignoreKey, messageCount: 1 });
 }
 
-async function proposeFilter({ message, email, labelsById, labelId, ignoreKey, fromInbox, messageCount }) {
+async function proposeFilter({ message, email, labelsById, labelId, ignoreKey, messageCount }) {
+  if (hasOpenEditor()) return; // never replace a filter being edited
   const addresses = await readMessageAddresses(message, email);
   const sender = addresses.from[0] ?? "";
   const dismissalKey = `${ignoreKey}|${sender}`;
@@ -92,26 +98,47 @@ async function proposeFilter({ message, email, labelsById, labelId, ignoreKey, f
     if (error instanceof AuthError) return []; // the window will show the error
     throw error;
   });
-  const alreadyCovered = sender && filters.some(filter =>
-    filter.action?.addLabelIds?.includes(labelId) &&
-    [sender, domainOf(sender)].some(value =>
-      JSON.stringify(filter.criteria ?? {}).toLowerCase().includes(value)));
+  const alreadyCovered = sender &&
+    findRelatedFilters(filters, { query: `from:${sender}` }, { addLabelIds: [labelId] })
+      .some(({ kind }) => kind === "duplicate" || kind === "covered");
   if (alreadyCovered) return;
 
+  const { preferDomain = false } = await loadStore("settings", {});
   const proposalId = crypto.randomUUID();
   proposals.clear();
   proposals.set(proposalId, {
+    mode: "suggest",
     dismissalKey,
     ignoreKey,
     email,
     labelId,
     labelName: labelsById.get(labelId).name,
-    fromInbox,
     subject: message.subject,
     messageCount,
     addresses,
+    preferDomain,
+    filters,
+    labels: [...labelsById.values()],
   });
   await showProposalWindow(proposalId);
+}
+
+/** Creation (no filterId) or edition, from the filter list. */
+async function openFilterForm(email, filterId) {
+  const [filters, labelsById] = await Promise.all([listFilters(email), listLabels(email)]);
+  const filter = filterId ? filters.find(entry => entry.id === filterId) : null;
+  if (filterId && !filter) throw new Error(translate("errFilterGone"));
+  const proposalId = crypto.randomUUID();
+  proposals.clear();
+  proposals.set(proposalId, {
+    mode: filter ? "edit" : "new",
+    email,
+    filter,
+    filters,
+    labels: [...labelsById.values()],
+  });
+  await showProposalWindow(proposalId);
+  return {};
 }
 
 async function showProposalWindow(proposalId) {
@@ -126,12 +153,14 @@ async function showProposalWindow(proposalId) {
       proposalWindowId = null;
     }
   }
-  const proposalWindow = await browser.windows.create({ type: "popup", url, width: 560, height: 640 });
+  const proposalWindow = await browser.windows.create({ type: "popup", url, width: 620, height: 780 });
   proposalWindowId = proposalWindow.id;
 }
 
 browser.windows.onRemoved.addListener(windowId => {
-  if (windowId === proposalWindowId) proposalWindowId = null;
+  if (windowId !== proposalWindowId) return;
+  proposalWindowId = null;
+  proposals.clear();
 });
 
 browser.messages.onMoved.addListener((originalMessages, movedMessages) => {
@@ -163,22 +192,96 @@ async function countMatchingMessages(proposalId, query) {
   };
 }
 
-/** existingMessages: "none" (future messages only), "inbox" or "all". */
-async function createProposedFilter(proposalId, query, archive, existingMessages) {
-  const proposal = getProposal(proposalId);
-  const addLabelIds = [proposal.labelId];
-  const removeLabelIds = archive ? ["INBOX"] : [];
-  await createFilter(proposal.email, { query }, { addLabelIds, ...(archive ? { removeLabelIds } : {}) });
-  let appliedCount = 0;
-  if (existingMessages === "inbox" || existingMessages === "all") {
-    const search = existingMessages === "inbox" ? inInbox(query) : query;
-    const { ids } = await searchMessages(proposal.email, search, MAX_EXISTING_MESSAGES_UPDATED);
-    await batchModifyLabels(proposal.email, ids, addLabelIds, removeLabelIds);
-    appliedCount = ids.length;
-    messageCache.clear();
+/** Most recent matching messages, and the personal labels they already have. */
+async function sampleMatchingMessages(proposalId, query) {
+  const { email } = getProposal(proposalId);
+  const { ids } = await searchMessages(email, query, SAMPLE_SIZE);
+  const messages = [];
+  for (let start = 0; start < ids.length; start += SAMPLE_REQUESTS_AT_ONCE) {
+    messages.push(...await Promise.all(ids.slice(start, start + SAMPLE_REQUESTS_AT_ONCE)
+      .map(id => getMessageSummary(email, id))));
   }
+  const labelCounts = new Map();
+  for (const labelId of messages.flatMap(message => userLabelIds({ addLabelIds: message.labelIds }))) {
+    labelCounts.set(labelId, (labelCounts.get(labelId) ?? 0) + 1);
+  }
+  return {
+    preview: messages.slice(0, PREVIEW_SIZE),
+    sampleSize: messages.length,
+    labelCounts: [...labelCounts].sort((first, second) => second[1] - first[1]),
+  };
+}
+
+/** Number of messages this search has in common with each other filter. */
+async function findOverlappingFilters(proposalId, query) {
+  const { email, filters, filter: editedFilter } = getProposal(proposalId);
+  const queue = filters.filter(filter => filter.id !== editedFilter?.id);
+  const overlaps = [];
+  const searchNextFilters = async () => {
+    for (let filter = queue.shift(); filter; filter = queue.shift()) {
+      try {
+        const search = `(${query}) (${fullQuery(filter.criteria)})`;
+        const { ids, hasMore } = await searchMessages(email, search, MAX_COUNTED_MESSAGES);
+        if (ids.length) overlaps.push({ filterId: filter.id, count: ids.length, hasMore });
+      } catch (error) {
+        if (error instanceof AuthError || error instanceof OfflineError) throw error;
+        console.warn("Gmail Labels: overlap search failed", error); // a search Gmail rejects
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: OVERLAP_SEARCHES_AT_ONCE }, searchNextFilters));
+  return { overlaps: overlaps.sort((first, second) => second.count - first.count) };
+}
+
+/** Gmail can't update a filter: the new one is created first, so nothing is lost on failure. */
+async function replaceFilter(email, original, criteria, action) {
+  const current = await getFilter(email, original.id).catch(error => {
+    throw error.status === 404 ? new Error(translate("errFilterGone")) : error;
+  });
+  if (filterKey(current.criteria, current.action) !== filterKey(original.criteria, original.action)) {
+    throw new Error(translate("errFilterChanged"));
+  }
+  if (filterKey(criteria, action) === filterKey(original.criteria, original.action)) return {};
+  await createFilter(email, criteria, action);
+  try {
+    await deleteFilter(email, original.id);
+  } catch (error) {
+    if (error instanceof AuthError) throw error;
+    return { warning: translate("filterOldKept", error.message) };
+  }
+  return {};
+}
+
+function notifyFiltersChanged(email) {
+  browser.runtime.sendMessage({ command: "filtersChanged", email }).catch(() => {}); // no list open
+}
+
+/** existingMessages: "none" (future messages only), "inbox" or "all". */
+async function applyToExistingMessages(email, query, action, existingMessages) {
+  const addLabelIds = action.addLabelIds ?? [];
+  const removeLabelIds = action.removeLabelIds ?? [];
+  const hasLabelChange = addLabelIds.length || removeLabelIds.length;
+  if (!hasLabelChange || (existingMessages !== "inbox" && existingMessages !== "all")) {
+    return { appliedCount: 0, hasMore: false };
+  }
+  const search = existingMessages === "inbox" ? inInbox(query) : query;
+  const { ids, hasMore } = await searchMessages(email, search, MAX_EXISTING_MESSAGES_UPDATED);
+  await batchModifyLabels(email, ids, addLabelIds, removeLabelIds);
+  messageCache.clear();
+  return { appliedCount: ids.length, hasMore };
+}
+
+/** Creates a filter, or replaces the edited or extended one (targetFilterId). */
+async function saveFilter(proposalId, { criteria, action, targetFilterId, applyQuery, existingMessages }) {
+  const proposal = getProposal(proposalId);
+  const target = proposal.filters.find(filter => filter.id === targetFilterId);
+  let warning;
+  if (target) ({ warning } = await replaceFilter(proposal.email, target, criteria, action));
+  else await createFilter(proposal.email, criteria, action);
+  notifyFiltersChanged(proposal.email);
+  const applied = await applyToExistingMessages(proposal.email, applyQuery, action, existingMessages);
   proposals.delete(proposalId);
-  return { appliedCount };
+  return { ...applied, warning };
 }
 
 async function ignoreProposalFolder(proposalId) {
@@ -189,6 +292,42 @@ async function ignoreProposalFolder(proposalId) {
   proposals.delete(proposalId);
 }
 
+/** Filters and labels of an account; offline, the last known ones. */
+async function readFilterList(email) {
+  try {
+    const [filters, labelsById] = await Promise.all([listFilters(email), listLabels(email)]);
+    await browser.storage.local.set({ [`filters:${email}`]: filters });
+    return { filters, labels: [...labelsById.values()], stale: false };
+  } catch (error) {
+    const storedFilters = error instanceof OfflineError ? await loadStore(`filters:${email}`, null) : null;
+    if (!storedFilters) throw error;
+    const labelsById = await listLabels(email);
+    return { filters: storedFilters, labels: [...labelsById.values()], stale: true };
+  }
+}
+
+async function countFilterMessages(email, query) {
+  const { ids, hasMore } = await searchMessages(email, query, MAX_COUNTED_MESSAGES);
+  return { count: ids.length, hasMore };
+}
+
+async function openFilterList(email) {
+  const url = `/filter-list/filter-list.html${email ? `?email=${encodeURIComponent(email)}` : ""}`;
+  if (filterListTabId != null) {
+    try {
+      await browser.tabs.update(filterListTabId, { active: true, url });
+      return;
+    } catch {
+      filterListTabId = null;
+    }
+  }
+  filterListTabId = (await browser.tabs.create({ url })).id;
+}
+
+browser.tabs.onRemoved.addListener(tabId => {
+  if (tabId === filterListTabId) filterListTabId = null;
+});
+
 const toErrorResult = error => ({ error: error.message });
 
 browser.runtime.onMessage.addListener(request => {
@@ -197,15 +336,31 @@ browser.runtime.onMessage.addListener(request => {
       return Promise.resolve().then(() => getProposal(request.proposalId)).catch(toErrorResult);
     case "filterCount":
       return countMatchingMessages(request.proposalId, request.query).catch(toErrorResult);
-    case "filterCreate":
-      return createProposedFilter(request.proposalId, request.query, request.archive, request.existingMessages)
-        .catch(toErrorResult);
+    case "filterSample":
+      return sampleMatchingMessages(request.proposalId, request.query).catch(toErrorResult);
+    case "filterOverlaps":
+      return findOverlappingFilters(request.proposalId, request.query).catch(toErrorResult);
+    case "filterSave":
+      return saveFilter(request.proposalId, request).catch(toErrorResult);
     case "filterDismiss":
       dismissedProposals.add(proposals.get(request.proposalId)?.dismissalKey);
       proposals.delete(request.proposalId);
       return Promise.resolve({});
     case "filterIgnoreFolder":
       return ignoreProposalFolder(request.proposalId).then(() => ({}), toErrorResult);
+    case "filterListOpen":
+      return openFilterList(request.email).then(() => ({}), toErrorResult);
+    case "filterListRead":
+      return readFilterList(request.email).catch(toErrorResult);
+    case "filterListCount":
+      return countFilterMessages(request.email, request.query).catch(toErrorResult);
+    case "filterFormOpen":
+      return openFilterForm(request.email, request.filterId).catch(toErrorResult);
+    case "filterDelete":
+      return deleteFilter(request.email, request.filterId).then(() => ({}), toErrorResult);
+    case "filterRestore":
+      return createFilter(request.email, request.filter.criteria, request.filter.action)
+        .then(() => ({}), toErrorResult);
   }
   return undefined;
 });

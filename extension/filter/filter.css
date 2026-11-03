@@ -92,3 +92,54 @@ body.busy button {
   pointer-events: none;
   opacity: 0.6;
 }
+
+.warning {
+  color: #b06000;
+}
+
+select {
+  flex: 1;
+  min-width: 0;
+}
+
+#allFields {
+  margin-top: 4px;
+}
+
+#related,
+#preview,
+#overlaps {
+  margin: 4px 0 8px;
+  padding: 0;
+  list-style: none;
+}
+
+#related:empty,
+#preview:empty,
+#overlaps:empty {
+  display: none;
+}
+
+#related li,
+#overlaps li {
+  margin-bottom: 4px;
+}
+
+#preview li {
+  overflow: hidden;
+  font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+details {
+  margin-bottom: 10px;
+}
+
+summary {
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.5;
+}

@@ -6,44 +6,69 @@
   <link rel="stylesheet" href="filter.css">
 </head>
 <body>
-  <h1 data-i18n="filterHeading"></h1>
-  <p id="intro"></p>
+  <h1 id="heading"></h1>
+  <p id="intro" hidden></p>
 
-  <fieldset>
+  <fieldset id="criterionSection">
     <legend data-i18n="filterCriterion"></legend>
     <div id="values"></div>
-    <label class="option"><input type="radio" name="value" value="keyword"> <span data-i18n="filterKeyword"></span>
+    <label class="option"><input type="checkbox" name="value" value="keyword"> <span data-i18n="filterKeyword"></span>
       <input id="keyword" autocomplete="off"></label>
   </fieldset>
 
-  <fieldset>
+  <fieldset id="fieldsSection">
     <legend data-i18n="filterSearchIn"></legend>
     <label class="inline"><input type="checkbox" name="field" value="from"> <span data-i18n="fieldFrom"></span></label>
     <label class="inline"><input type="checkbox" name="field" value="to"> <span data-i18n="fieldTo"></span></label>
     <label class="inline"><input type="checkbox" name="field" value="replyTo"> <span data-i18n="fieldReplyTo"></span></label>
     <label class="inline"><input type="checkbox" name="field" value="subject"> <span data-i18n="fieldSubject"></span></label>
+    <button id="allFields" type="button" data-i18n="filterAllFields"></button>
   </fieldset>
 
   <label><span data-i18n="filterQuery"></span> <input id="query" autocomplete="off" spellcheck="false"></label>
+  <p id="otherCriteria" class="hint" hidden></p>
   <p id="count" class="hint"></p>
+  <p id="broad" class="warning" hidden></p>
+  <ul id="related"></ul>
 
-  <label><input id="archive" type="checkbox"> <span data-i18n="filterArchive"></span></label>
+  <details id="samplePanel" hidden>
+    <summary data-i18n="filterSample"></summary>
+    <ul id="preview"></ul>
+    <p id="labelSummary" class="hint"></p>
+    <p><button id="analyze" type="button" data-i18n="filterAnalyze"></button></p>
+    <ul id="overlaps"></ul>
+  </details>
+
+  <fieldset>
+    <legend data-i18n="filterActions"></legend>
+    <label class="option"><span data-i18n="filterLabel"></span> <select id="label"></select></label>
+    <label class="option"><span data-i18n="filterCategory"></span> <select id="category"></select></label>
+    <label><input id="archive" type="checkbox"> <span data-i18n="filterArchive"></span></label>
+    <label class="inline"><input id="read" type="checkbox"> <span data-i18n="actionRead"></span></label>
+    <label class="inline"><input id="star" type="checkbox"> <span data-i18n="actionStar"></span></label>
+    <label class="inline"><input id="important" type="checkbox"> <span data-i18n="actionImportant"></span></label>
+    <label class="inline"><input id="neverSpam" type="checkbox"> <span data-i18n="actionNeverSpam"></span></label>
+    <label class="inline"><input id="trash" type="checkbox"> <span data-i18n="actionTrash"></span></label>
+    <p id="otherActions" class="hint" hidden></p>
+  </fieldset>
 
   <fieldset>
     <legend data-i18n="filterExisting"></legend>
+    <p id="existingNote" class="hint" data-i18n="filterExistingNote" hidden></p>
     <label><input type="radio" name="existing" value="none" checked> <span data-i18n="existingNone"></span></label>
     <label><input type="radio" name="existing" value="inbox"> <span data-i18n="existingInbox"></span></label>
     <label><input type="radio" name="existing" value="all"> <span data-i18n="existingAll"></span></label>
   </fieldset>
 
   <p class="buttons">
-    <button id="create" class="primary" data-i18n="filterCreate"></button>
+    <button id="create" class="primary"></button>
     <button id="dismiss" data-i18n="filterDismiss"></button>
-    <button id="ignore" data-i18n="filterIgnore"></button>
+    <button id="ignore" data-i18n="filterIgnore" hidden></button>
   </p>
   <p id="status"></p>
 
   <script src="../common/i18n.js"></script>
+  <script src="../common/filter-query.js"></script>
   <script src="filter.js"></script>
 </body>
 </html>

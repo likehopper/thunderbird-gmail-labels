@@ -1,0 +1,120 @@
+:root {
+  color-scheme: light dark;
+}
+
+body {
+  max-width: 1200px;
+  margin: 16px auto;
+  padding: 0 16px;
+  font: 14px/1.5 system-ui, sans-serif;
+}
+
+header,
+#filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+h1 {
+  margin: 0 12px 0 0;
+  font-size: 18px;
+}
+
+#total {
+  flex: 1;
+  opacity: 0.75;
+}
+
+#search {
+  flex: 1;
+  min-width: 200px;
+  padding: 3px 6px;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+#status:empty {
+  display: none;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 4px 6px;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.3);
+  text-align: left;
+  vertical-align: top;
+}
+
+thead th {
+  position: sticky;
+  top: 0;
+  background: Canvas;
+}
+
+button.sort {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+td.count {
+  min-width: 48px;
+  font-variant-numeric: tabular-nums;
+}
+
+td.buttons {
+  white-space: nowrap;
+}
+
+.tag {
+  padding: 0 5px;
+  border-radius: 3px;
+  background: rgba(128, 128, 128, 0.2);
+  font-size: 11px;
+}
+
+.tag.alert {
+  background: #b06000;
+  color: white;
+}
+
+.query {
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  word-break: break-word;
+}
+
+.primary {
+  font-weight: 600;
+}
+
+.warning {
+  color: #b06000;
+}
+
+.error {
+  color: #d93025;
+}
+
+body.busy {
+  cursor: progress;
+}
+
+body.busy button {
+  pointer-events: none;
+  opacity: 0.6;
+}

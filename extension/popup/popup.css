@@ -56,7 +56,8 @@ li.heading:first-child {
   margin-top: 0;
 }
 
-#create {
+#create,
+#manageFilters {
   width: 100%;
   text-align: left;
 }

@@ -39,6 +39,18 @@ From version 1.0.1, updates are managed by
 [addons.thunderbird.net](https://addons.thunderbird.net/). Version 1.0.0 still reads
 [`updates.json`](updates.json), which moves it to 1.0.1.
 
+### Release channels
+
+- **Stable**: [addons.thunderbird.net](https://addons.thunderbird.net/), or the
+  [latest release](https://github.com/likehopper/thunderbird-gmail-labels/releases/latest).
+- **Beta**: install the `.xpi` of the latest
+  [pre-release](https://github.com/likehopper/thunderbird-gmail-labels/releases) over
+  your version. Settings and authorizations are kept, and later betas arrive by
+  themselves. When the next stable version comes out, Thunderbird moves you to it.
+
+To leave the beta earlier, install the stable `.xpi` over it, without uninstalling:
+uninstalling can erase your settings.
+
 ## Setup
 
 The setup assistant opens on first install. To open it later: *Add-ons and Themes* →
@@ -66,7 +78,14 @@ button, opens a "Create a Gmail filter?" window:
   operator, which Google does not document but Gmail recognizes.
 - **The resulting Gmail search stays editable**, and the number of matching messages
   is shown for the whole mailbox and for the inbox.
-- **Action**: add the label, and optionally skip the inbox.
+- **Actions**: the label, plus optional ones (category, skip the inbox, mark as read,
+  star, important, never spam, delete).
+- **Checks as you type**: an identical filter blocks the creation; a filter that
+  already covers this search, or shares a term with it, is shown, and can be opened or
+  extended (*Add to this filter*). A preview shows the last matching messages and the
+  labels they already have. *Compare with all filters* counts the messages in common
+  with each filter; these figures come from Gmail searches, which can differ slightly
+  from what a filter really does.
 - **Existing messages**: a Gmail filter only applies to new incoming messages. You
   can also apply it once to the existing messages of the inbox, or to the whole
   mailbox (5,000 messages at most).
@@ -75,6 +94,21 @@ No suggestion is made for the trash, spam, `[Gmail]/…` folders, moves between
 accounts, or when an existing filter already adds this label for this sender or
 domain. *Not now* lasts until Thunderbird restarts; *Don't suggest for this label
 again* can be reset in the setup page.
+
+## Managing filters
+
+*Manage Gmail filters* (in the popup and in the setup page) lists the filters of an
+account, with their label, criteria, actions and number of messages. You can search,
+sort and filter them by label, action, field or state (duplicate, deleted label,
+forwarding), and export them as JSON.
+
+- **Edit** reuses the filter window. Gmail cannot update a filter: the extension
+  creates the new one, then deletes the old one, so the filter gets a new id. Criteria
+  and actions the window does not show are kept.
+- **Delete** asks to click twice, and can be undone from the page while it stays open.
+  Deleting a selection first downloads a JSON copy of it.
+- Changing or deleting a filter does not change messages already filed.
+- Offline, the last known list is shown read-only.
 
 ## Offline mode
 
@@ -97,7 +131,7 @@ server, and no analytics.
 | Permission | Why |
 | --- | --- |
 | `gmail.modify` (Google) | Read and change labels, search messages |
-| `gmail.settings.basic` (Google) | Read and create filters |
+| `gmail.settings.basic` (Google) | Read, create and delete filters |
 | `accountsRead`, `messagesRead` | Find the displayed message and its account |
 | `messagesModify` | Add the label bar to the message display |
 | `messagesMove` | Remove the label of the open folder at once |
@@ -136,14 +170,23 @@ for the console messages, then
 ## Development
 
 ```sh
-./build.sh     # creates dist/thunderbird-gmail-labels-<version>.xpi
-./release.sh   # publishes the manifest's version (from main, with a clean tree)
+./build.sh          # creates dist/thunderbird-gmail-labels-<version>.xpi
+./build.sh --beta   # same, with the update_url of the beta channel
+./release.sh        # publishes the manifest's version (from main or beta, with a clean tree)
 ```
 
-To publish a version: raise `version` in `extension/manifest.json`, commit, run
-`release.sh`, then upload the same `.xpi` to addons.thunderbird.net. `release.sh`
-needs the [GitHub CLI](https://cli.github.com/). The manifest must not contain
-`update_url`: addons.thunderbird.net rejects it.
+Work happens on the `beta` branch, with versions like `1.2.0b1`:
+
+1. To publish a beta: raise `version`, commit, run `release.sh` from `beta`. It creates
+   a pre-release and updates `updates-beta.json`, an asset of the `beta-feed` release.
+2. To go stable: open a pull request from `beta` to `main`, then on `main` set the
+   stable version (`1.2.0`), commit, run `release.sh`, and upload the same `.xpi` to
+   addons.thunderbird.net. `release.sh` refuses a beta version on `main`.
+3. Merge `main` back into `beta`, and raise the version to continue.
+
+`release.sh` needs the [GitHub CLI](https://cli.github.com/).
+`extension/manifest.json` must not contain `update_url`: addons.thunderbird.net rejects
+it, so only `build.sh --beta` adds it, to the built `.xpi`.
 
 Never change the extension id: updates and the OAuth redirect URI depend on it.
 

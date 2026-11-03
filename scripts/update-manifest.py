@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Adds a version to updates.json: update-manifest.py <version> <file.xpi>."""
+"""Adds a version to an update feed: update-manifest.py <version> <file.xpi> [feed.json]."""
 import hashlib
 import json
 import os
 import sys
 
 REPOSITORY_URL = "https://github.com/likehopper/thunderbird-gmail-labels"
-UPDATES_PATH = "updates.json"
 
 version, xpi_path = sys.argv[1:3]
+UPDATES_PATH = sys.argv[3] if len(sys.argv) > 3 else "updates.json"
 manifest = json.load(open("extension/manifest.json"))
 gecko_settings = manifest["browser_specific_settings"]["gecko"]
 extension_id = gecko_settings["id"]

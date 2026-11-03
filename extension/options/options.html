@@ -10,6 +10,9 @@
   <p><span data-i18n="optIntro"></span>
     <button class="link" data-url="https://github.com/likehopper/thunderbird-gmail-labels#troubleshooting" data-i18n="help"></button></p>
 
+  <p id="betaNotice" class="warn" hidden><span data-i18n="betaNotice"></span>
+    <button class="link" data-url="https://github.com/likehopper/thunderbird-gmail-labels#release-channels" data-i18n="betaLeave"></button></p>
+
   <details class="step" id="step1">
     <summary><span data-i18n="step1Title"></span> <span class="badge"></span></summary>
     <p data-i18n="step1Intro"></p>
@@ -65,7 +68,9 @@
 
   <details class="step" id="step6">
     <summary><span data-i18n="step6Title"></span></summary>
+    <p><button id="manageFilters" data-i18n="manageFilters"></button></p>
     <label class="inline"><input id="proposeFilters" type="checkbox"> <span data-i18n="proposeFilters"></span></label>
+    <label class="inline"><input id="preferDomain" type="checkbox"> <span data-i18n="preferDomain"></span></label>
     <p><span id="ignoredCount"></span> <button id="resetIgnored" data-i18n="resetIgnored" hidden></button></p>
   </details>
 

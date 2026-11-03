@@ -299,7 +299,7 @@ async function changeLabels(tabId, { addLabelIds = [], removeLabelIds = [], addL
     if (addLabelIds.length + addLabelNames.length === 1) {
       const addedLabelId = addLabelIds[0] ?? findLabelByName(await listLabels(email), addLabelNames[0])?.id;
       if (addedLabelId) {
-        proposeFilterForLabel(message, email, addedLabelId, entry.labelIds.includes("INBOX"))
+        proposeFilterForLabel(message, email, addedLabelId)
           .catch(error => console.warn("Gmail Labels: filter suggestion failed", error));
       }
     }

@@ -1,0 +1,48 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title data-i18n="listTitle"></title>
+  <link rel="stylesheet" href="filter-list.css">
+</head>
+<body>
+  <header>
+    <h1 data-i18n="listTitle"></h1>
+    <label><span data-i18n="colAccount"></span> <select id="account"></select></label>
+    <span id="total"></span>
+    <button id="new" class="primary" data-i18n="listNew"></button>
+    <button id="export" data-i18n="listExport"></button>
+  </header>
+
+  <div id="filters">
+    <input id="search" type="search" data-i18n-placeholder="listSearch" autocomplete="off">
+    <select id="labelFilter"></select>
+    <select id="actionFilter"></select>
+    <select id="fieldFilter"></select>
+    <select id="stateFilter"></select>
+  </div>
+
+  <p id="offline" class="warning" data-i18n="listOffline" hidden></p>
+  <p id="notice" hidden><span id="noticeText"></span> <button id="undo" data-i18n="listUndo" hidden></button></p>
+  <p id="selection" hidden><span id="selectionText"></span> <button id="deleteSelected" data-i18n="listDeleteSelected"></button></p>
+  <p id="status"></p>
+
+  <table>
+    <thead>
+      <tr>
+        <th><input id="selectAll" type="checkbox"></th>
+        <th><button class="sort" data-sort="label" data-i18n="listColLabel"></button></th>
+        <th><button class="sort" data-sort="criteria" data-i18n="listColCriteria"></button></th>
+        <th data-i18n="listColActions"></th>
+        <th><button class="sort" data-sort="count" data-i18n="listColMessages"></button></th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+
+  <script src="../common/i18n.js"></script>
+  <script src="../common/filter-query.js"></script>
+  <script src="filter-list.js"></script>
+</body>
+</html>

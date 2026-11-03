@@ -236,8 +236,30 @@ async function listFilters(email) {
   return (await gmailRequest(email, "/settings/filters")).filter ?? [];
 }
 
+async function getFilter(email, filterId) {
+  return gmailRequest(email, `/settings/filters/${encodeURIComponent(filterId)}`);
+}
+
 async function createFilter(email, criteria, action) {
   return gmailRequest(email, "/settings/filters", { method: "POST", body: { criteria, action } });
+}
+
+async function deleteFilter(email, filterId) {
+  await gmailRequest(email, `/settings/filters/${encodeURIComponent(filterId)}`, { method: "DELETE" });
+}
+
+/** Headers and labels of a message, without its content. */
+async function getMessageSummary(email, gmailId) {
+  const headerNames = ["From", "Subject", "Date"].map(name => `metadataHeaders=${name}`).join("&");
+  const message = await gmailRequest(email, `/messages/${gmailId}?format=metadata&${headerNames}`);
+  const headers = message.payload?.headers ?? [];
+  const header = name => headers.find(entry => entry.name.toLowerCase() === name)?.value ?? "";
+  return {
+    from: header("from"),
+    subject: header("subject"),
+    date: Number(message.internalDate) || null,
+    labelIds: message.labelIds ?? [],
+  };
 }
 
 /** Ids of the messages matching a Gmail search (spam and trash excluded). */

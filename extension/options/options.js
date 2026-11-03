@@ -197,6 +197,13 @@ function setUpIgnoredLabels(settings) {
     setUpCheckboxSetting(settingName, settings);
   }
   setUpIgnoredLabels(settings);
+  // Off by default, unlike the other settings
+  element("preferDomain").checked = settings.preferDomain === true;
+  element("preferDomain").addEventListener("change", event => {
+    saveSettings({ preferDomain: event.target.checked });
+  });
+  element("manageFilters").addEventListener("click", () => send({ command: "filterListOpen" }));
+  element("betaNotice").hidden = !browser.runtime.getManifest().version.includes("b");
 
   await renderAccounts();
   // Open the first step left to do

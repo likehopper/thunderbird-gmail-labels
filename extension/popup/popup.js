@@ -85,6 +85,7 @@ function render() {
     return;
   }
 
+  element("manageFilters").hidden = false;
   const typedText = element("filter").value.trim();
   const search = typedText.toLowerCase();
   const currentLabelIds = new Set(state.labels.map(label => label.id));
@@ -127,6 +128,9 @@ element("create").addEventListener("click", () => {
   const labelName = element("filter").value.trim();
   element("filter").value = "";
   applyChange({ command: "create", labelName });
+});
+element("manageFilters").addEventListener("click", () => {
+  send({ command: "filterListOpen", email: state.email }).then(() => window.close());
 });
 
 (async () => {
