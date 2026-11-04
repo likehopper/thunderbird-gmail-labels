@@ -14,6 +14,7 @@ const LABEL_LIST_CACHE_DURATION = 10 * 60 * 1000;
 const TOKEN_EXPIRY_MARGIN_SECONDS = 60;
 const MAX_IDS_PER_BATCH_MODIFY = 1000;
 const MAX_RESULTS_PER_SEARCH_PAGE = 500;
+const SLOW_REQUEST_DURATION = 2000; // logged, to find what makes the pages slow
 
 class AuthError extends Error {}
 class OfflineError extends Error {}
@@ -79,6 +80,7 @@ async function getAccessToken(email) {
 
 async function gmailRequest(email, path, { method = "GET", body } = {}, retryIfUnauthorized = true) {
   const token = await getAccessToken(email);
+  const startedAt = Date.now();
   let response;
   try {
     response = await fetch(GMAIL_API_URL + path, {
@@ -92,6 +94,8 @@ async function gmailRequest(email, path, { method = "GET", body } = {}, retryIfU
   } catch (error) {
     throw new OfflineError(error.message);
   }
+  const duration = Date.now() - startedAt;
+  if (duration > SLOW_REQUEST_DURATION) console.warn(`Gmail Labels: ${method} ${path.split("?")[0]} took ${duration} ms`);
   if (response.status === 401 && retryIfUnauthorized) {
     accessTokens.delete(email);
     return gmailRequest(email, path, { method, body }, false);
@@ -270,6 +274,7 @@ async function searchMessages(email, query, maxResults) {
     const parameters = new URLSearchParams({
       q: query,
       maxResults: String(Math.min(MAX_RESULTS_PER_SEARCH_PAGE, maxResults - ids.length)),
+      fields: "messages(id),nextPageToken", // only what is used: a lighter answer
     });
     if (pageToken) parameters.set("pageToken", pageToken);
     const page = await gmailRequest(email, `/messages?${parameters}`);

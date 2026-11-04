@@ -191,7 +191,7 @@ function scheduleCount() {
           countWithMore(result.inboxCount, result.hasMoreInInbox));
     if (result.error) return;
     renderBroadWarning(query, result);
-    if (result.mailboxCount) renderSample(query, countId);
+    if (result.mailboxCount) offerSample(query, countId);
   }, COUNT_DELAY);
 }
 
@@ -208,7 +208,22 @@ function formatMessageLine({ from, subject, date }) {
   return `${dateText}${from} · ${subject || translate("noSubject")}`;
 }
 
-async function renderSample(query, countId) {
+let pendingSample = null; // { query, countId } of the panel, loaded when it is opened
+
+/** The preview reads messages one by one: only once the panel is opened. */
+function offerSample(query, countId) {
+  pendingSample = { query, countId };
+  element("preview").replaceChildren();
+  element("labelSummary").textContent = "";
+  element("samplePanel").hidden = false;
+  if (element("samplePanel").open) renderSample();
+}
+
+async function renderSample() {
+  if (!pendingSample) return;
+  const { query, countId } = pendingSample;
+  pendingSample = null;
+  element("labelSummary").textContent = translate("filterSearching");
   const sample = await send({ command: "filterSample", query });
   if (countId !== latestCountId || sample.error) return;
   element("preview").replaceChildren(...sample.preview.map(message => {
@@ -488,6 +503,9 @@ function setUpListeners() {
     element(id).addEventListener("change", renderRelatedFilters);
   }
   element("analyze").addEventListener("click", analyzeOverlaps);
+  element("samplePanel").addEventListener("toggle", () => {
+    if (element("samplePanel").open) renderSample();
+  });
   element("create").addEventListener("click", saveFilter);
   element("delete").addEventListener("click", deleteEditedFilter);
   element("ignore").addEventListener("click", async () => {

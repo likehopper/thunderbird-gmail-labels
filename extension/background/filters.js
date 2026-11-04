@@ -8,10 +8,20 @@
  */
 const MAX_COUNTED_MESSAGES = 500;
 const MAX_EXISTING_MESSAGES_UPDATED = 5000;
-const SAMPLE_SIZE = 50;
+const SAMPLE_SIZE = 20;
 const SAMPLE_REQUESTS_AT_ONCE = 10;
 const PREVIEW_SIZE = 5;
 const OVERLAP_SEARCHES_AT_ONCE = 5;
+const DELETES_AT_ONCE = 5;
+
+/** Runs worker on each item, at most limit at once. */
+async function inParallel(items, limit, worker) {
+  const queue = [...items];
+  const runNext = async () => {
+    for (let item = queue.shift(); item !== undefined; item = queue.shift()) await worker(item);
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, queue.length) }, runNext));
+}
 
 const proposals = new Map(); // proposal id -> proposal (only one at a time)
 const dismissedProposals = new Set(); // "Not now" keys, for the session
@@ -31,10 +41,11 @@ function extractAddresses(headerValues) {
   return [...addresses];
 }
 
-async function readMessageAddresses(message, ownAddress) {
+/** withReplyTo: Reply-To needs the whole message (downloaded if not offline), so the menu skips it. */
+async function readMessageAddresses(message, ownAddress, { withReplyTo = true } = {}) {
   let replyTo = [];
   try {
-    replyTo = (await browser.messages.getFull(message.id)).headers?.["reply-to"] ?? [];
+    if (withReplyTo) replyTo = (await browser.messages.getFull(message.id)).headers?.["reply-to"] ?? [];
   } catch (error) {
     console.warn("Gmail Labels: unreadable Reply-To", error);
   }
@@ -397,14 +408,14 @@ async function applyOptimizationGroup(email, { filterIds, queries }) {
     throw error;
   }
   const kept = [];
-  for (const filter of group.filter(entry => !reused.has(entry.id))) {
+  await inParallel(group.filter(entry => !reused.has(entry.id)), DELETES_AT_ONCE, async filter => {
     try {
       await deleteFilter(email, filter.id);
     } catch (error) {
       if (error instanceof AuthError) throw error;
       kept.push(filter.id);
     }
-  }
+  });
   notifyFiltersChanged(email);
   return { created: created.length, deleted: group.length - reused.size - kept.length, kept };
 }
@@ -492,7 +503,7 @@ async function fillEditMenu({ message, email }, instance) {
   const [filters, labelsById, addresses] = await Promise.all([
     menuFilters(email),
     listLabels(email),
-    readMessageAddresses(message, ""),
+    readMessageAddresses(message, "", { withReplyTo: false }),
   ]);
   if (instance !== menuInstance) return false; // the menu was closed meanwhile
   const matching = filters.filter(filter => filterMatchesMessage(filter, { ...addresses, subject: message.subject }));

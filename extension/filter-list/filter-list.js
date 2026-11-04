@@ -9,6 +9,8 @@ const CONFIRM_DELAY = 4000;
 const COUNTS_AT_ONCE = 3;
 const EXPORT_URL_DURATION = 60 * 1000; // the download reads the file meanwhile
 const ANSWER_TIMEOUT = 90 * 1000;
+const DELETES_AT_ONCE = 5;
+const SEARCH_DELAY = 200;
 
 /** Rejects if the background script does not answer, rather than waiting forever. */
 function withTimeout(promise) {
@@ -273,14 +275,16 @@ async function deleteFilters(filtersToDelete, backupPath = null) {
   const deleted = [];
   let error = null;
   try {
-    for (const filter of filtersToDelete) {
-      const result = await withTimeout(send({ command: "filterDelete", email, filterId: filter.id }));
-      if (result?.error || !result) {
-        error = result?.error ?? translate("errNoAnswer");
-        break;
+    // A few at once; after an error, the remaining ones are not sent
+    const queue = [...filtersToDelete];
+    const deleteNext = async () => {
+      for (let filter = queue.shift(); filter && !error; filter = queue.shift()) {
+        const result = await withTimeout(send({ command: "filterDelete", email, filterId: filter.id }));
+        if (result?.error || !result) error = result?.error ?? translate("errNoAnswer");
+        else deleted.push(filter);
       }
-      deleted.push(filter);
-    }
+    };
+    await Promise.all(Array.from({ length: DELETES_AT_ONCE }, deleteNext));
   } catch (caught) {
     error = caught.message;
   } finally {
@@ -527,7 +531,11 @@ function setUpListeners() {
     // A copy before a deletion in bulk, or nothing is deleted
     exportFilters(selectedFilters).then(backupPath => backupPath !== null && deleteFilters(selectedFilters, backupPath));
   }, element("deleteSelected"));
-  element("search").addEventListener("input", render);
+  let searchTimer = null;
+  element("search").addEventListener("input", () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(render, SEARCH_DELAY); // not one full rebuild per key
+  });
   for (const id of ["labelFilter", "actionFilter", "fieldFilter", "stateFilter"]) {
     element(id).addEventListener("change", render);
   }
