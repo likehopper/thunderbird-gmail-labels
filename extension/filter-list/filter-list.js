@@ -7,6 +7,7 @@ const element = id => document.getElementById(id);
 const send = request => browser.runtime.sendMessage(request);
 const CONFIRM_DELAY = 4000;
 const COUNTS_AT_ONCE = 3;
+const EXPORT_URL_DURATION = 60 * 1000; // the download reads the file meanwhile
 const FIELD_OPTIONS = ["from", "to", "cc", "replyto", "subject"];
 const STATE_OPTIONS = ["duplicate", "missingLabel", "forward"];
 // Action name -> how to recognize it in a filter's action
@@ -235,15 +236,28 @@ async function openForm(filterId) {
   if (result.error) setStatus(result.error, true);
 }
 
-function exportFilters(filtersToExport) {
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(new Blob([JSON.stringify(filtersToExport, null, 2)], { type: "application/json" }));
-  link.download = `gmail-filters-${email}-${new Date().toISOString().slice(0, 10)}.json`;
-  link.click();
-  setTimeout(() => URL.revokeObjectURL(link.href));
+/**
+ * Saves a JSON copy in the downloads folder (a link with "download" does nothing in
+ * Thunderbird). Returns the file path, or null after showing the error.
+ */
+async function exportFilters(filtersToExport) {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(filtersToExport, null, 2)], { type: "application/json" }));
+  const time = new Date().toISOString().slice(0, 19).replace(/:/g, "-");
+  try {
+    const downloadId = await browser.downloads.download({ url, filename: `gmail-filters-${email}-${time}.json`, saveAs: false });
+    const [download] = await browser.downloads.search({ id: downloadId });
+    const path = download?.filename ?? "";
+    setStatus(translate("exportSaved", path));
+    return path;
+  } catch (error) {
+    setStatus(translate("errExport", error.message), true);
+    return null;
+  } finally {
+    setTimeout(() => URL.revokeObjectURL(url), EXPORT_URL_DURATION);
+  }
 }
 
-async function deleteFilters(filtersToDelete) {
+async function deleteFilters(filtersToDelete, backupPath = null) {
   document.body.classList.add("busy");
   setStatus();
   const deleted = [];
@@ -258,7 +272,8 @@ async function deleteFilters(filtersToDelete) {
   }
   document.body.classList.remove("busy");
   lastDeleted = deleted;
-  if (deleted.length) showNotice(translate("listDeleted", deleted.length), true);
+  const backupText = backupPath ? ` ${translate("exportSaved", backupPath)}` : "";
+  if (deleted.length) showNotice(translate("listDeleted", deleted.length) + backupText, true);
   if (error) setStatus(error, true);
   selectedIds.clear();
   await loadFilters();
@@ -392,7 +407,8 @@ async function measureLimit() {
 async function applyOptimization() {
   const chosen = optimizationPlan.filter(group => group.checkbox.checked);
   if (!chosen.length) return;
-  exportFilters(filters); // a copy of everything before
+  const backupPath = await exportFilters(filters); // a copy of everything before, or nothing changes
+  if (backupPath === null) return;
   document.body.classList.add("busy");
   setStatus();
   let created = 0;
@@ -416,7 +432,8 @@ async function applyOptimization() {
   }
   document.body.classList.remove("busy");
   showNotice([translate("optimizeDone", created, deleted),
-    kept.length ? translate("optimizeKept", kept.length) : ""].filter(Boolean).join(" "), false);
+    kept.length ? translate("optimizeKept", kept.length) : "",
+    translate("exportSaved", backupPath)].filter(Boolean).join(" "), false);
   if (errors.length) setStatus(errors.join(" — "), true);
   await loadFilters();
 }
@@ -485,8 +502,8 @@ function setUpListeners() {
   createConfirmedButton("optimizeApply", applyOptimization, element("applyOptimize"));
   createConfirmedButton("listDeleteSelected", () => {
     const selectedFilters = filters.filter(filter => selectedIds.has(filter.id));
-    exportFilters(selectedFilters); // a copy before a deletion in bulk
-    deleteFilters(selectedFilters);
+    // A copy before a deletion in bulk, or nothing is deleted
+    exportFilters(selectedFilters).then(backupPath => backupPath !== null && deleteFilters(selectedFilters, backupPath));
   }, element("deleteSelected"));
   element("search").addEventListener("input", render);
   for (const id of ["labelFilter", "actionFilter", "fieldFilter", "stateFilter"]) {

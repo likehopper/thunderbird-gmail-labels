@@ -136,6 +136,8 @@
   "listTitle": {"message": "Gmail filters"},
   "listNew": {"message": "New filter"},
   "listExport": {"message": "Export (JSON)"},
+  "exportSaved": {"message": "JSON copy saved: $1"},
+  "errExport": {"message": "The JSON copy could not be saved ($1): nothing was changed."},
   "listSearch": {"message": "Search a label or a criterion"},
   "listTotal": {"message": "$1 filter(s)"},
   "listShown": {"message": "$1 of $2 filter(s)"},

@@ -152,6 +152,7 @@ server, and no analytics.
 | `messagesModify` | Add the label bar to the message display |
 | `messagesMove` | Remove the label of the open folder at once |
 | `menus` | Filter entries in the context menu of a message |
+| `downloads` | Save the JSON copies of the filters (export, before a bulk deletion or an optimization) |
 | `identity`, `storage` | Sign in to Google, keep settings and offline data |
 
 The refresh token and client secret are stored **unencrypted** in your Thunderbird

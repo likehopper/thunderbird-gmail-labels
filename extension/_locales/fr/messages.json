@@ -136,6 +136,8 @@
   "listTitle": {"message": "Filtres Gmail"},
   "listNew": {"message": "Nouveau filtre"},
   "listExport": {"message": "Exporter (JSON)"},
+  "exportSaved": {"message": "Copie JSON enregistrée : $1"},
+  "errExport": {"message": "La copie JSON n'a pas pu être enregistrée ($1) : rien n'a été modifié."},
   "listSearch": {"message": "Chercher un libellé ou un critère"},
   "listTotal": {"message": "$1 filtre(s)"},
   "listShown": {"message": "$1 sur $2 filtre(s)"},
