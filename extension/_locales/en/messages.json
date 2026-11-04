@@ -179,7 +179,7 @@
   "optimizeTitle": {"message": "Optimize the filters"},
   "optimizeIntro": {"message": "Filters doing exactly the same thing (label, category, options, forwarding) with a plain OR search are merged, without the terms already covered by a domain of the same field. They still match the same messages. A JSON copy of all the filters is downloaded first."},
   "optimizeNoLimit": {"message": "The longest search Gmail accepts in a filter is not measured yet. Measuring creates a few test filters matching no message, and deletes each one at once."},
-  "optimizeLimit": {"message": "Longest search accepted by Gmail: $1 characters (measured on $2). Merged searches keep a margin to be extended later: $3 characters at most."},
+  "optimizeLimit": {"message": "Longest search accepted by Gmail: $1 characters (measured on $2). To be safe, a merged search stays under $3 characters: Gmail does not guarantee it applies very long searches correctly, and a shorter filter is quicker to recreate."},
   "optimizeMeasure": {"message": "Measure the limit"},
   "optimizeMeasuring": {"message": "Measuring with test filters…"},
   "optimizeNone": {"message": "Nothing to merge: no two filters with a plain search do exactly the same thing."},

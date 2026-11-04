@@ -179,7 +179,7 @@
   "optimizeTitle": {"message": "Optimiser les filtres"},
   "optimizeIntro": {"message": "Les filtres qui font exactement la même chose (libellé, catégorie, options, transfert) avec une simple recherche « ou » sont regroupés, sans les termes déjà couverts par un domaine du même champ. Ils trient toujours les mêmes messages. Une copie JSON de tous les filtres est d'abord téléchargée."},
   "optimizeNoLimit": {"message": "La longueur maximale d'une recherche de filtre Gmail n'est pas encore mesurée. La mesure crée quelques filtres de test qui ne trient aucun message, et supprime chacun aussitôt."},
-  "optimizeLimit": {"message": "Recherche la plus longue acceptée par Gmail : $1 caractères (mesurée le $2). Les recherches regroupées gardent une marge pour être complétées plus tard : $3 caractères au plus."},
+  "optimizeLimit": {"message": "Recherche la plus longue acceptée par Gmail : $1 caractères (mesurée le $2). Par prudence, une recherche regroupée ne dépasse pas $3 caractères : Gmail ne garantit pas d'appliquer correctement des recherches très longues, et un filtre plus court se recrée plus vite."},
   "optimizeMeasure": {"message": "Mesurer la limite"},
   "optimizeMeasuring": {"message": "Mesure avec des filtres de test…"},
   "optimizeNone": {"message": "Rien à regrouper : aucun filtre à recherche simple ne fait exactement la même chose qu'un autre."},

@@ -319,11 +319,14 @@ async function restoreDeletedFilters() {
 
 // Optimizer: merges the filters doing the same thing, lists the concurrent ones
 const LIMIT_MARGIN = 0.9; // room left to extend a merged filter later
+// Gmail saves much longer searches, but nothing guarantees it still applies them
+// reliably; shorter filters also lose less when one breaks and are cheaper to recreate
+const MAX_MERGED_LENGTH = 1500;
 const MAX_CONCURRENTS_SHOWN = 100;
 let queryLimit = null;
 let optimizationPlan = [];
 
-const maxMergedLength = () => Math.floor(queryLimit.length * LIMIT_MARGIN);
+const maxMergedLength = () => Math.min(MAX_MERGED_LENGTH, Math.floor(queryLimit.length * LIMIT_MARGIN));
 
 function describeAction(action) {
   const names = Object.keys(ACTION_TESTS).filter(name => ACTION_TESTS[name](action))

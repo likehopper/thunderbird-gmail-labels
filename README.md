@@ -121,8 +121,9 @@ forwarding), and export them as JSON.
   the terms already covered by a domain of the same field: they still match the same
   messages. Each group can be unchecked, and a JSON copy of all the filters is
   downloaded first. The longest search Gmail accepts is measured once, with test
-  filters matching no message that are deleted at once; merged searches keep 10% of
-  it free to be extended later. The same panel lists the *concurrent filters*: they
+  filters matching no message that are deleted at once; merged searches stay under
+  1,500 characters (or 90% of the limit if lower): Gmail does not guarantee it applies
+  very long searches correctly, and a shorter filter is quicker to recreate. The same panel lists the *concurrent filters*: they
   share a term but do different things, so a message gets both.
 - Offline, the last known list is shown read-only.
 
