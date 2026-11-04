@@ -8,6 +8,16 @@ const send = request => browser.runtime.sendMessage(request);
 const CONFIRM_DELAY = 4000;
 const COUNTS_AT_ONCE = 3;
 const EXPORT_URL_DURATION = 60 * 1000; // the download reads the file meanwhile
+const ANSWER_TIMEOUT = 90 * 1000;
+
+/** Rejects if the background script does not answer, rather than waiting forever. */
+function withTimeout(promise) {
+  let timer;
+  const timeout = new Promise((resolve, reject) => {
+    timer = setTimeout(() => reject(new Error(translate("errNoAnswer"))), ANSWER_TIMEOUT);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
 const FIELD_OPTIONS = ["from", "to", "cc", "replyto", "subject"];
 const STATE_OPTIONS = ["duplicate", "missingLabel", "forward"];
 // Action name -> how to recognize it in a filter's action
@@ -262,15 +272,20 @@ async function deleteFilters(filtersToDelete, backupPath = null) {
   setStatus();
   const deleted = [];
   let error = null;
-  for (const filter of filtersToDelete) {
-    const result = await send({ command: "filterDelete", email, filterId: filter.id });
-    if (result.error) {
-      error = result.error;
-      break;
+  try {
+    for (const filter of filtersToDelete) {
+      const result = await withTimeout(send({ command: "filterDelete", email, filterId: filter.id }));
+      if (result?.error || !result) {
+        error = result?.error ?? translate("errNoAnswer");
+        break;
+      }
+      deleted.push(filter);
     }
-    deleted.push(filter);
+  } catch (caught) {
+    error = caught.message;
+  } finally {
+    document.body.classList.remove("busy");
   }
-  document.body.classList.remove("busy");
   lastDeleted = deleted;
   const backupText = backupPath ? ` ${translate("exportSaved", backupPath)}` : "";
   if (deleted.length) showNotice(translate("listDeleted", deleted.length) + backupText, true);
@@ -415,27 +430,34 @@ async function applyOptimization() {
   let deleted = 0;
   const kept = [];
   const errors = [];
-  for (const group of chosen) {
-    const result = await send({
-      command: "filterOptimizeGroup",
-      email,
-      filterIds: group.filters.map(filter => filter.id),
-      queries: group.queries,
-    });
-    if (result.error) {
-      errors.push(`${describeAction(group.action)} : ${result.error}`);
-      continue;
+  try {
+    for (const [index, group] of chosen.entries()) {
+      element("optimizeSummary").textContent = translate("optimizeProgress", index + 1, chosen.length, describeAction(group.action));
+      const result = await withTimeout(send({
+        command: "filterOptimizeGroup",
+        email,
+        filterIds: group.filters.map(filter => filter.id),
+        queries: group.queries,
+      }));
+      if (result?.error || !result) {
+        errors.push(`${describeAction(group.action)} : ${result?.error ?? translate("errNoAnswer")}`);
+        continue;
+      }
+      created += result.created;
+      deleted += result.deleted;
+      kept.push(...result.kept);
     }
-    created += result.created;
-    deleted += result.deleted;
-    kept.push(...result.kept);
+  } catch (error) {
+    errors.push(error.message);
+  } finally {
+    // Whatever happens, the page must not stay greyed out
+    document.body.classList.remove("busy");
   }
-  document.body.classList.remove("busy");
   showNotice([translate("optimizeDone", created, deleted),
     kept.length ? translate("optimizeKept", kept.length) : "",
     translate("exportSaved", backupPath)].filter(Boolean).join(" "), false);
-  if (errors.length) setStatus(errors.join(" — "), true);
   await loadFilters();
+  if (errors.length) setStatus(errors.join(" — "), true);
 }
 
 function findDuplicateIds() {

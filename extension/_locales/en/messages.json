@@ -191,6 +191,8 @@
   "optimizeAfter": {"message": "After"},
   "optimizeApply": {"message": "Merge the checked groups"},
   "optimizeDone": {"message": "$1 filter(s) created, $2 deleted."},
+  "optimizeProgress": {"message": "Group $1 of $2: $3…"},
+  "errNoAnswer": {"message": "No answer from the extension: reload this page and check the filters."},
   "optimizeKept": {"message": "$1 old filter(s) could not be deleted: delete them from the list."},
   "optimizeConcurrent": {"message": "Concurrent filters"},
   "optimizeConcurrentIntro": {"message": "These filters share a term but do different things: Gmail applies all of them, so the message gets both labels or options. Merging them would change what they do: keep them if both make sense, otherwise edit or delete one."},

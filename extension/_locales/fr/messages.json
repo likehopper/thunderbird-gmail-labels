@@ -191,6 +191,8 @@
   "optimizeAfter": {"message": "Après"},
   "optimizeApply": {"message": "Regrouper les groupes cochés"},
   "optimizeDone": {"message": "$1 filtre(s) créé(s), $2 supprimé(s)."},
+  "optimizeProgress": {"message": "Groupe $1 sur $2 : $3…"},
+  "errNoAnswer": {"message": "Pas de réponse de l'extension : recharger cette page et vérifier les filtres."},
   "optimizeKept": {"message": "$1 ancien(s) filtre(s) n'ont pas pu être supprimés : les supprimer depuis la liste."},
   "optimizeConcurrent": {"message": "Filtres concurrents"},
   "optimizeConcurrentIntro": {"message": "Ces filtres ont un terme en commun mais font des choses différentes : Gmail les applique tous, le message reçoit donc les deux libellés ou options. Les regrouper changerait ce qu'ils font : les garder si les deux ont un sens, sinon en modifier ou en supprimer un."},
