@@ -117,7 +117,7 @@ forwarding), and export them as JSON.
   delete its filter (twice too, without undo).
 - Changing or deleting a filter does not change messages already filed.
 - **Optimize** merges the filters doing exactly the same thing (label, category,
-  options, forwarding) with a plain OR search into as few filters as possible, without
+  options, forwarding) with an OR search (`{a b}`, `a OR b` or `from:(a OR b)`) into as few filters as possible, without
   the terms already covered by a domain of the same field: they still match the same
   messages. Each group can be unchecked, and a JSON copy of all the filters is
   downloaded first. The longest search Gmail accepts is measured once, with test

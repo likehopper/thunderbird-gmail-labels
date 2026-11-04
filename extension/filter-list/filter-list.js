@@ -544,7 +544,10 @@ function setUpListeners() {
     });
   }
   browser.runtime.onMessage.addListener(request => {
-    if (request?.command === "filtersChanged" && request.email === email) loadFilters();
+    // While merging or deleting in bulk, the list is reloaded once at the end
+    if (request?.command === "filtersChanged" && request.email === email && !document.body.classList.contains("busy")) {
+      loadFilters();
+    }
   });
 }
 

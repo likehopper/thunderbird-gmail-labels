@@ -61,14 +61,44 @@ function searchTerms(query) {
   return terms;
 }
 
+const SEARCH_TOKEN_PATTERN = /(?:[a-z]+:)?(?:"[^"]*"|\([^()]*\)|[^\s(){}"]+)|\S/gi;
+
+/** The search without parentheses around all of it: ((a OR b)) → a OR b. */
+function withoutOuterParentheses(search) {
+  const isBalanced = text => {
+    let depth = 0;
+    for (const character of text) {
+      depth += character === "(" ? 1 : character === ")" ? -1 : 0;
+      if (depth < 0) return false;
+    }
+    return depth === 0;
+  };
+  let result = search.trim();
+  while (result.startsWith("(") && result.endsWith(")") && isBalanced(result.slice(1, -1))) {
+    result = result.slice(1, -1).trim();
+  }
+  return result;
+}
+
+/** "a OR b OR c": terms separated by OR only (one term is a list too). */
+function isOrList(text) {
+  const tokens = text.trim().match(SEARCH_TOKEN_PATTERN) ?? [];
+  return tokens.length % 2 === 1 && tokens.every((token, index) => index % 2
+    ? token === "OR"
+    : token !== "OR" && token.length > 1 || /^[^\s(){}"-]$/.test(token));
+}
+
 /** True when any single term of the search is enough to match a message. */
 function isOrSearch(query) {
-  const search = query.trim();
+  const search = withoutOuterParentheses(query);
   const terms = searchTerms(search);
   if (!terms.length || terms.some(term => term.negated)) return false;
   if (/^\{[^{}]*\}$/.test(search)) return true;
-  if (/^[a-z]+:\([^()]*\bOR\b[^()]*\)$/i.test(search)) return true;
-  return terms.length === 1;
+  // from:a OR to:a, from:(a OR b): each group in parentheses must be an OR list too
+  if (!isOrList(search)) return false;
+  return (search.match(SEARCH_TOKEN_PATTERN) ?? [])
+    .filter(token => token.includes("("))
+    .every(token => isOrList(token.slice(token.indexOf("(") + 1, -1)));
 }
 
 /** { values, fields } when the form can show this search (each value in the same fields), or null. */
@@ -172,18 +202,14 @@ function filterMatchesMessage(filter, { from, to, replyTo, subject = "" }) {
   });
 }
 
-const orSearchItems = query => {
-  const search = query.trim();
-  return (search.startsWith("{") ? search.slice(1, -1) : search).match(/[^\s"]*"[^"]*"|\S+/g) ?? [];
-};
-
-const isPlainOrSearch = search => isOrSearch(search) &&
-  (/^\{[^{}]*\}$/.test(search.trim()) || orSearchItems(search).length === 1);
+/** The terms of an OR search, one by one: "from:(a OR b) OR to:c" → from:a, from:b, to:c. */
+const orSearchItems = query => searchTerms(query).map(({ field, value }) =>
+  `${field ? `${field}:` : ""}${/[\s(){}]/.test(value) ? `"${value}"` : value}`);
 
 /** Only a plain OR search, without other criteria, can be merged with another one. */
 function isMergeableFilter(filter) {
   const { query, ...otherFilterCriteria } = filter.criteria ?? {};
-  return Boolean(query) && !Object.keys(otherFilterCriteria).length && isPlainOrSearch(query);
+  return Boolean(query) && !Object.keys(otherFilterCriteria).length && isOrSearch(query);
 }
 
 /** Items without duplicates nor those covered by another item of the same field (its domain). */
@@ -242,20 +268,40 @@ function concurrentFilters(filters) {
     key: actionKey(filter.action),
     terms: searchTerms(editableQuery(filter.criteria)).filter(term => !term.negated),
   }));
-  const pairs = [];
-  entries.forEach((first, index) => {
-    for (const second of entries.slice(index + 1)) {
-      if (first.key === second.key) continue;
-      const values = new Set();
-      for (const term of first.terms) {
-        for (const other of second.terms) {
-          if (termsOverlap(term, other)) values.add(term.value.length <= other.value.length ? term.value : other.value);
+  // Indexed by value: a term only meets the terms of its own value and of its domains
+  const termsByValue = new Map();
+  entries.forEach((entry, index) => entry.terms.forEach(term => {
+    termsByValue.set(term.value, [...(termsByValue.get(term.value) ?? []), { index, term }]);
+  }));
+  const valuesByPair = new Map(); // "first|second" -> values in common
+  entries.forEach((entry, index) => {
+    for (const term of entry.terms) {
+      for (const broadValue of coveringValues(term.value)) {
+        for (const { index: otherIndex, term: other } of termsByValue.get(broadValue) ?? []) {
+          if (otherIndex === index || entries[otherIndex].key === entry.key || !termsOverlap(term, other)) continue;
+          const pairKey = `${Math.min(index, otherIndex)}|${Math.max(index, otherIndex)}`;
+          if (!valuesByPair.has(pairKey)) valuesByPair.set(pairKey, new Set());
+          valuesByPair.get(pairKey).add(term.value);
         }
       }
-      if (values.size) pairs.push({ filters: [first.filter, second.filter], values: [...values] });
     }
   });
-  return pairs;
+  return [...valuesByPair].map(([pairKey, values]) => ({
+    filters: pairKey.split("|").map(index => entries[index].filter),
+    values: [...values],
+  }));
+}
+
+/** The values that cover this one in valueCovers: itself, its domain and the parent domains. */
+function coveringValues(value) {
+  const values = new Set([value]);
+  const at = value.indexOf("@");
+  if (at >= 0) values.add(value.slice(at + 1));
+  for (let dot = value.indexOf("."); dot >= 0; dot = value.indexOf(".", dot + 1)) {
+    const suffix = value.slice(dot + 1);
+    if (suffix.includes(".")) values.add(suffix);
+  }
+  return values;
 }
 
 /** The search of this filter extended with a new search, or null if they can't be merged. */
@@ -263,7 +309,7 @@ function mergedQuery(filter, query, action) {
   const { query: existingQuery, ...otherExistingCriteria } = filter.criteria ?? {};
   if (!existingQuery || Object.keys(otherExistingCriteria).length) return null;
   if (actionKey(filter.action) !== actionKey(action)) return null;
-  if (!isPlainOrSearch(existingQuery) || !isPlainOrSearch(query)) return null;
+  if (!isOrSearch(existingQuery) || !isOrSearch(query)) return null;
   const items = [...new Set([...orSearchItems(existingQuery), ...orSearchItems(query)])];
   return items.length > 1 ? `{${items.join(" ")}}` : items[0];
 }
