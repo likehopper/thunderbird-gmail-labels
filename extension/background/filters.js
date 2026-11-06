@@ -12,16 +12,6 @@ const SAMPLE_SIZE = 20;
 const SAMPLE_REQUESTS_AT_ONCE = 10;
 const PREVIEW_SIZE = 5;
 const OVERLAP_SEARCHES_AT_ONCE = 5;
-const DELETES_AT_ONCE = 5;
-
-/** Runs worker on each item, at most limit at once. */
-async function inParallel(items, limit, worker) {
-  const queue = [...items];
-  const runNext = async () => {
-    for (let item = queue.shift(); item !== undefined; item = queue.shift()) await worker(item);
-  };
-  await Promise.all(Array.from({ length: Math.min(limit, queue.length) }, runNext));
-}
 
 const proposals = new Map(); // proposal id -> proposal (only one at a time)
 const dismissedProposals = new Set(); // "Not now" keys, for the session
@@ -68,9 +58,8 @@ async function proposeFilterAfterMove(messagesBefore, messagesAfter) {
   if (targetFolder.specialUse?.length || /^\/\[(Gmail|Google Mail)\]/.test(targetFolder.path)) return;
   if ((settings.ignoredFolders ?? []).includes(folderKey(targetFolder))) return;
 
-  const account = await browser.accounts.get(targetFolder.accountId);
-  const email = account?.type === "imap" && account.identities?.[0]?.email?.toLowerCase();
-  if (!email || !(await loadStore("tokens", {}))[email]) return;
+  const email = await authorizedEmail(targetFolder.accountId);
+  if (!email) return;
 
   const labelsById = await listLabels(email, true);
   const labelId = folderLabelId(targetFolder, labelsById);
@@ -254,21 +243,18 @@ async function sampleMatchingMessages(proposalId, query) {
 /** Number of messages this search has in common with each other filter. */
 async function findOverlappingFilters(proposalId, query) {
   const { email, filters, filter: editedFilter } = getProposal(proposalId);
-  const queue = filters.filter(filter => filter.id !== editedFilter?.id);
+  const otherFilters = filters.filter(filter => filter.id !== editedFilter?.id);
   const overlaps = [];
-  const searchNextFilters = async () => {
-    for (let filter = queue.shift(); filter; filter = queue.shift()) {
-      try {
-        const search = `(${query}) (${fullQuery(filter.criteria)})`;
-        const { ids, hasMore } = await searchMessages(email, search, MAX_COUNTED_MESSAGES);
-        if (ids.length) overlaps.push({ filterId: filter.id, count: ids.length, hasMore });
-      } catch (error) {
-        if (error instanceof AuthError || error instanceof OfflineError) throw error;
-        console.warn("Gmail Labels: overlap search failed", error); // a search Gmail rejects
-      }
+  await inParallel(otherFilters, OVERLAP_SEARCHES_AT_ONCE, async filter => {
+    try {
+      const search = `(${query}) (${fullQuery(filter.criteria)})`;
+      const { ids, hasMore } = await searchMessages(email, search, MAX_COUNTED_MESSAGES);
+      if (ids.length) overlaps.push({ filterId: filter.id, count: ids.length, hasMore });
+    } catch (error) {
+      if (error instanceof AuthError || error instanceof OfflineError) throw error;
+      console.warn("Gmail Labels: overlap search failed", error); // a search Gmail rejects
     }
-  };
-  await Promise.all(Array.from({ length: OVERLAP_SEARCHES_AT_ONCE }, searchNextFilters));
+  });
   return { overlaps: overlaps.sort((first, second) => second.count - first.count) };
 }
 
@@ -334,91 +320,6 @@ async function deleteEditedFilter(proposalId) {
   return {};
 }
 
-// Measure of the longest search Gmail accepts in a filter
-const PROBE_MIN_LENGTH = 200;
-const PROBE_MAX_LENGTH = 20000;
-const PROBE_PRECISION = 50;
-const PROBE_ACTION = { addLabelIds: ["STARRED"] }; // never applied: no message matches
-
-/** Search of about this length, made of addresses of a domain reserved for examples. */
-function probeQuery(length) {
-  const items = [];
-  for (let index = 0; `{${items.join(" ")}}`.length < length; index++) {
-    items.push(`from:probe${String(index).padStart(4, "0")}@example.com`);
-  }
-  return `{${items.join(" ")}}`;
-}
-
-/** Null if Gmail accepts a filter with this search (deleted at once), else its refusal. */
-async function probeRefusal(email, query) {
-  let created;
-  try {
-    created = await createFilter(email, { query }, PROBE_ACTION);
-  } catch (error) {
-    if (error.status === 400) return error.message;
-    throw error;
-  }
-  await deleteFilter(email, created.id);
-  return null;
-}
-
-/** Dichotomy between an accepted and a refused length; the result is kept for all accounts. */
-async function measureQueryLimit(email) {
-  let accepted = 0;
-  let refused = PROBE_MAX_LENGTH + 1;
-  let refusal = null;
-  let length = PROBE_MIN_LENGTH;
-  while (refused - accepted > PROBE_PRECISION) {
-    const query = probeQuery(length);
-    if (query.length >= refused) break;
-    const message = await probeRefusal(email, query);
-    if (message === null) accepted = query.length;
-    else [refused, refusal] = [query.length, message];
-    // A short search refused: not a matter of length, Gmail's reason is shown
-    if (!accepted) throw new Error(translate("errProbeFailed", refusal));
-    length = refused > PROBE_MAX_LENGTH ? Math.min(accepted * 2, PROBE_MAX_LENGTH) : Math.floor((accepted + refused) / 2);
-    if (length <= accepted) break;
-  }
-  const limit = { length: accepted, refused: refused > PROBE_MAX_LENGTH ? null : refused, refusal, measuredAt: Date.now() };
-  await browser.storage.local.set({ filterQueryLimit: limit });
-  return limit;
-}
-
-/**
- * Replaces filters doing the same thing by the merged ones. Checks first that they did
- * not change elsewhere; if a creation fails, the filters already created are deleted.
- */
-async function applyOptimizationGroup(email, { filterIds, queries }) {
-  const current = await listFilters(email);
-  const group = filterIds.map(id => current.find(filter => filter.id === id));
-  if (group.some(filter => !filter)) throw new Error(translate("errFilterChanged"));
-  const action = group[0].action;
-  if (group.some(filter => actionKey(filter.action) !== actionKey(action))) throw new Error(translate("errFilterChanged"));
-  // A merged search equal to one of the group is kept: Gmail refuses an identical filter
-  const reused = new Set();
-  const created = [];
-  try {
-    for (const query of queries) {
-      const same = group.find(filter => !reused.has(filter.id) && searchKey(filter.criteria.query) === searchKey(query));
-      if (same) reused.add(same.id);
-      else created.push(await createFilter(email, { query }, action));
-    }
-  } catch (error) {
-    await Promise.all(created.map(filter => deleteFilter(email, filter.id).catch(() => {})));
-    throw error;
-  }
-  const kept = [];
-  await inParallel(group.filter(entry => !reused.has(entry.id)), DELETES_AT_ONCE, async filter => {
-    try {
-      await deleteFilter(email, filter.id);
-    } catch (error) {
-      if (error instanceof AuthError) throw error;
-      kept.push(filter.id);
-    }
-  });
-  notifyFiltersChanged(email);
-  return { created: created.length, deleted: group.length - reused.size - kept.length, kept };
-}
 
 async function ignoreProposalFolder(proposalId) {
   const { ignoreKey } = getProposal(proposalId);
@@ -464,105 +365,6 @@ browser.tabs.onRemoved.addListener(tabId => {
   if (tabId === filterListTabId) filterListTabId = null;
 });
 
-// Context menu of a message, in the message list or the message itself
-const MENU_CREATE = "filterCreate";
-const MENU_EDIT = "filterEdit";
-const MENU_LIST = "filterList";
-const MENU_EDIT_PREFIX = "filterEdit:"; // + filter id
-const MENU_CONTEXTS = ["message_list", "page"];
-const MAX_MENU_FILTERS = 15;
-const MAX_MENU_TITLE_LENGTH = 90;
-const MENU_FILTERS_CACHE_DURATION = 2 * 60 * 1000;
-
-browser.menus.create({ id: MENU_CREATE, title: translate("menuCreateFilter"), contexts: MENU_CONTEXTS, visible: false });
-browser.menus.create({ id: MENU_EDIT, title: translate("menuEditFilter"), contexts: MENU_CONTEXTS, visible: false });
-browser.menus.create({ id: MENU_LIST, title: translate("manageFilters"), contexts: MENU_CONTEXTS, visible: false });
-
-const menuFiltersCache = new Map(); // email -> { filters, updatedAt }
-let menuEditIds = [];
-let menuInstance = 0;
-
-/** Filters read at most once every two minutes, so the menu opens quickly. */
-async function menuFilters(email) {
-  const cached = menuFiltersCache.get(email);
-  if (cached && Date.now() - cached.updatedAt < MENU_FILTERS_CACHE_DURATION) return cached.filters;
-  const filters = await listFilters(email);
-  menuFiltersCache.set(email, { filters, updatedAt: Date.now() });
-  return filters;
-}
-
-function menuFilterTitle(filter, labelsById) {
-  const labelNames = userLabelIds(filter.action).map(id => labelsById.get(id)?.name ?? translate("labelDeleted"));
-  const title = `${labelNames.join(", ") || translate("filterNoLabel")} : ${fullQuery(filter.criteria)}`;
-  const shortTitle = title.length > MAX_MENU_TITLE_LENGTH ? `${title.slice(0, MAX_MENU_TITLE_LENGTH - 1)}…` : title;
-  return shortTitle.replace(/&/g, "&&"); // "&" marks an access key
-}
-
-/** Replaces the entries of the "Edit" submenu with the filters matching the message. */
-async function fillEditMenu({ message, email }, instance) {
-  const [filters, labelsById, addresses] = await Promise.all([
-    menuFilters(email),
-    listLabels(email),
-    readMessageAddresses(message, "", { withReplyTo: false }),
-  ]);
-  if (instance !== menuInstance) return false; // the menu was closed meanwhile
-  const matching = filters.filter(filter => filterMatchesMessage(filter, { ...addresses, subject: message.subject }));
-  await Promise.all(menuEditIds.map(id => browser.menus.remove(id).catch(() => {})));
-  menuEditIds = matching.slice(0, MAX_MENU_FILTERS).map(filter => browser.menus.create({
-    id: `${MENU_EDIT_PREFIX}${filter.id}`,
-    parentId: MENU_EDIT,
-    title: menuFilterTitle(filter, labelsById),
-    contexts: MENU_CONTEXTS,
-  }));
-  return matching.length > 0;
-}
-
-/** The right-clicked message with its account address, or null if the account is not authorized. */
-async function menuMessage(info, tab) {
-  const message = info.selectedMessages?.messages?.[0] ??
-    (tab ? await getDisplayedMessage(tab.id).catch(() => null) : null);
-  if (!message?.folder) return null;
-  const account = await browser.accounts.get(message.folder.accountId);
-  const email = account?.type === "imap" && account.identities?.[0]?.email?.toLowerCase();
-  if (!email || !(await loadStore("tokens", {}))[email]) return null;
-  return { message, email };
-}
-
-browser.menus.onShown.addListener(async (info, tab) => {
-  // menuIds only lists visible entries: test the context, the entries start hidden
-  if (!info.contexts.some(context => MENU_CONTEXTS.includes(context))) return;
-  const instance = ++menuInstance;
-  const target = await menuMessage(info, tab).catch(() => null);
-  if (instance !== menuInstance) return;
-  await Promise.all([MENU_CREATE, MENU_LIST].map(id => browser.menus.update(id, { visible: Boolean(target) })));
-  await browser.menus.update(MENU_EDIT, { visible: false });
-  browser.menus.refresh();
-  if (!target) return;
-  // The filters can take a moment to read: the submenu appears once they are known
-  const hasFilters = await fillEditMenu(target, instance).catch(error => {
-    console.warn("Gmail Labels: filters of the message unreadable", error);
-    return false;
-  });
-  if (instance !== menuInstance || !hasFilters) return;
-  await browser.menus.update(MENU_EDIT, { visible: true });
-  browser.menus.refresh();
-});
-
-browser.menus.onHidden.addListener(() => menuInstance++);
-
-browser.menus.onClicked.addListener(async (info, tab) => {
-  const menuId = String(info.menuItemId);
-  if (menuId !== MENU_CREATE && menuId !== MENU_LIST && !menuId.startsWith(MENU_EDIT_PREFIX)) return;
-  try {
-    const target = await menuMessage(info, tab);
-    if (!target) return;
-    if (menuId === MENU_LIST) await openFilterList(target.email);
-    else if (menuId === MENU_CREATE) await openFilterFormForMessage(target.message, target.email);
-    else await openFilterForm(target.email, menuId.slice(MENU_EDIT_PREFIX.length));
-  } catch (error) {
-    console.warn("Gmail Labels: context menu failed", error);
-  }
-});
 
 const toErrorResult = error => ({ error: error.message });
 

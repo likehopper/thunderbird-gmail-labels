@@ -240,7 +240,7 @@ async function renderSample() {
 
 function describeFilter(filter) {
   const labelNames = userLabelIds(filter.action).map(id => labelsById.get(id)?.name ?? translate("labelDeleted"));
-  return `${labelNames.join(", ") || translate("filterNoLabel")} : ${fullQuery(filter.criteria)}`;
+  return translate("labelAndText", labelNames.join(", ") || translate("filterNoLabel"), fullQuery(filter.criteria));
 }
 
 function createFilterButton(textKey, onClick) {

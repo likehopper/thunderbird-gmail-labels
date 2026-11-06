@@ -53,7 +53,7 @@ function renderChecks(container, checks) {
     const { className, symbol } = checkStyle(check);
     const entry = document.createElement("li");
     entry.className = className;
-    entry.textContent = `${symbol} ${check.name}${check.detail ? ` : ${check.detail}` : ""}`;
+    entry.textContent = `${symbol} ${check.detail ? translate("labelAndText", check.name, check.detail) : check.name}`;
     list.append(entry);
   }
   if (checks.length && checks.every(check => check.ok === true)) {
@@ -77,7 +77,7 @@ function createAuthorizationButton(account) {
     button.disabled = true;
     element("accountError").textContent = "";
     const result = await send({ command: account.authorized ? "revoke" : "authorize", email: account.email });
-    if (!result.ok) element("accountError").textContent = `${account.email} : ${result.error}`;
+    if (!result.ok) element("accountError").textContent = translate("labelAndText", account.email, result.error);
     // After a successful authorization, check right away that everything works
     renderAccounts(result.ok && !account.authorized ? account.email : null);
   });

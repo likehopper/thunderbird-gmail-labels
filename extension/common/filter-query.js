@@ -93,9 +93,9 @@ function isOrSearch(query) {
   const search = withoutOuterParentheses(query);
   const terms = searchTerms(search);
   if (!terms.length || terms.some(term => term.negated)) return false;
-  if (/^\{[^{}]*\}$/.test(search)) return true;
-  // from:a OR to:a, from:(a OR b): each group in parentheses must be an OR list too
-  if (!isOrList(search)) return false;
+  // {a b} or a OR b; in both, a group in parentheses must be an OR list too, since
+  // subject:(a b) means both words
+  if (!/^\{[^{}]*\}$/.test(search) && !isOrList(search)) return false;
   return (search.match(SEARCH_TOKEN_PATTERN) ?? [])
     .filter(token => token.includes("("))
     .every(token => isOrList(token.slice(token.indexOf("(") + 1, -1)));

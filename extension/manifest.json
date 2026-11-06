@@ -3,7 +3,7 @@
   "name": "__MSG_extName__",
   "description": "__MSG_extDescription__",
   "default_locale": "en",
-  "version": "1.1.0b12",
+  "version": "1.1.0b13",
   "author": "likeHopper",
   "homepage_url": "https://github.com/likehopper/thunderbird-gmail-labels",
   "browser_specific_settings": {
@@ -20,10 +20,13 @@
     "scripts": [
       "common/i18n.js",
       "common/filter-query.js",
+      "common/parallel.js",
       "background/gmail.js",
       "background/offline.js",
       "background/background.js",
       "background/filters.js",
+      "background/menu.js",
+      "background/optimizer.js",
       "background/diagnose.js"
     ]
   },

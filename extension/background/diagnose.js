@@ -38,8 +38,11 @@ async function diagnoseAccount(email) {
   else addCheck("chkExpiry", null, translate("fixExpiry", formatDate(authorizationExpiresAt)));
 
   try {
-    const url = `${TOKEN_INFO_URL}?access_token=${encodeURIComponent(accessToken)}`;
-    const tokenInfo = await (await fetch(url)).json();
+    // In the body rather than the URL, which can end up in logs
+    const tokenInfo = await (await fetch(TOKEN_INFO_URL, {
+      method: "POST",
+      body: new URLSearchParams({ access_token: accessToken }),
+    })).json();
     if (!tokenInfo.scope) throw new Error(tokenInfo.error_description ?? "tokeninfo");
     const grantedScopes = tokenInfo.scope.split(" ");
     const missingScopes = OAUTH_SCOPES.filter(scope => !grantedScopes.includes(scope));
@@ -72,7 +75,7 @@ async function diagnoseAccount(email) {
   }
 
   const accounts = await browser.accounts.list(false);
-  const account = accounts.find(candidate => candidate.identities?.[0]?.email?.toLowerCase() === email);
+  const account = accounts.find(candidate => accountEmail(candidate) === email);
   const allMailFolder = account ? await findAllMailFolder(account.id).catch(() => null) : null;
   addCheck("chkAllMail", allMailFolder ? true : null, allMailFolder ? "" : translate("fixAllMail"));
   return checks;

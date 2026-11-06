@@ -192,6 +192,7 @@ for the console messages, then
 ./build.sh          # creates dist/thunderbird-gmail-labels-<version>.xpi
 ./build.sh --beta   # same, with the update_url of the beta channel
 ./release.sh        # publishes the manifest's version (from main or beta, with a clean tree)
+node --test         # tests of the search logic (Node 18 or later, no dependency)
 ```
 
 Work happens on the `beta` branch, with versions like `1.2.0b1`:

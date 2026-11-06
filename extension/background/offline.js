@@ -22,17 +22,20 @@ async function loadPendingChanges() {
   return loadStore("queue", []);
 }
 
-async function enqueueChange(change) {
-  const queue = await loadPendingChanges();
-  queue.push({ ...change, queuedAt: Date.now() });
-  await browser.storage.local.set({ queue });
+let queueWrite = Promise.resolve();
+
+/** One queue update at a time: two concurrent read-change-write would lose one of them. */
+function updatePendingChanges(change) {
+  queueWrite = queueWrite.catch(() => {}).then(async () => {
+    const queue = await loadPendingChanges();
+    change(queue);
+    await browser.storage.local.set({ queue });
+  });
+  return queueWrite;
 }
 
-async function removeOldestChange() {
-  const queue = await loadPendingChanges();
-  queue.shift();
-  await browser.storage.local.set({ queue });
-}
+const enqueueChange = change => updatePendingChanges(queue => queue.push({ ...change, queuedAt: Date.now() }));
+const removeOldestChange = () => updatePendingChanges(queue => queue.shift());
 
 /** Applies the changes still pending to a known label list. */
 function applyPendingChanges(labelIds, changes) {

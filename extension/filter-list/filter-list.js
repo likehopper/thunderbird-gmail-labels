@@ -276,15 +276,12 @@ async function deleteFilters(filtersToDelete, backupPath = null) {
   let error = null;
   try {
     // A few at once; after an error, the remaining ones are not sent
-    const queue = [...filtersToDelete];
-    const deleteNext = async () => {
-      for (let filter = queue.shift(); filter && !error; filter = queue.shift()) {
-        const result = await withTimeout(send({ command: "filterDelete", email, filterId: filter.id }));
-        if (result?.error || !result) error = result?.error ?? translate("errNoAnswer");
-        else deleted.push(filter);
-      }
-    };
-    await Promise.all(Array.from({ length: DELETES_AT_ONCE }, deleteNext));
+    await inParallel(filtersToDelete, DELETES_AT_ONCE, async filter => {
+      if (error) return;
+      const result = await withTimeout(send({ command: "filterDelete", email, filterId: filter.id }));
+      if (result?.error || !result) error = result?.error ?? translate("errNoAnswer");
+      else deleted.push(filter);
+    });
   } catch (caught) {
     error = caught.message;
   } finally {
@@ -353,8 +350,8 @@ function createGroupItem(group) {
   checkbox.checked = true;
   group.checkbox = checkbox;
   const removed = group.removedItems ? ` · ${translate("optimizeRemoved", group.removedItems)}` : "";
-  label.append(checkbox, ` ${describeAction(group.action)} : `,
-    translate("optimizeGroup", group.filters.length, group.queries.length) + removed);
+  label.append(checkbox, " ", translate("labelAndText", describeAction(group.action),
+    translate("optimizeGroup", group.filters.length, group.queries.length) + removed));
   const details = document.createElement("details");
   const summary = document.createElement("summary");
   summary.textContent = translate("optimizeDetails");
@@ -370,7 +367,7 @@ function createGroupItem(group) {
 
 function createConcurrentItem({ filters: pair, values }) {
   const entry = document.createElement("li");
-  entry.append(`${values.join(", ")} : `);
+  entry.append(translate("labelAndText", values.join(", "), ""));
   pair.forEach((filter, index) => {
     const openButton = document.createElement("button");
     openButton.textContent = translate("filterOpen");
@@ -447,7 +444,7 @@ async function applyOptimization() {
         queries: group.queries,
       }));
       if (result?.error || !result) {
-        errors.push(`${describeAction(group.action)} : ${result?.error ?? translate("errNoAnswer")}`);
+        errors.push(translate("labelAndText", describeAction(group.action), result?.error ?? translate("errNoAnswer")));
         continue;
       }
       created += result.created;

@@ -62,13 +62,21 @@ async function getDisplayedMessage(tabId) {
   return messages.length === 1 ? messages[0] : null;
 }
 
+/** Address of an IMAP account (its first identity, lowercase), or null. */
+const accountEmail = account =>
+  account?.type === "imap" ? account.identities?.[0]?.email?.toLowerCase() ?? null : null;
+
+/** Address of the account, or null if it is not an authorized IMAP account. */
+async function authorizedEmail(accountId) {
+  const email = accountEmail(await browser.accounts.get(accountId));
+  return email && (await loadStore("tokens", {}))[email] ? email : null;
+}
+
 /** The displayed message with its account address, or null if it is not in an IMAP account. */
 async function resolveDisplayedMessage(tabId) {
   const message = await getDisplayedMessage(tabId);
   if (!message?.folder) return null;
-  const account = await browser.accounts.get(message.folder.accountId);
-  if (account?.type !== "imap") return null;
-  const email = account.identities?.[0]?.email?.toLowerCase();
+  const email = accountEmail(await browser.accounts.get(message.folder.accountId));
   if (!email) return null;
   const tokens = await loadStore("tokens", {});
   return { message, email, authorized: Boolean(tokens[email]) };
@@ -244,7 +252,9 @@ function replayPendingChanges() {
       try {
         await applyChangeOnline(oldestChange);
       } catch (error) {
-        if (error instanceof OfflineError || error instanceof AuthError) break; // retried later
+        // Retried later: no network, no authorization, or Gmail busy or failing for now
+        const isTemporary = error.status >= 500 || error.status === 429;
+        if (error instanceof OfflineError || error instanceof AuthError || isTemporary) break;
         console.warn("Gmail Labels: change dropped", oldestChange, error);
       }
       await removeOldestChange();
@@ -334,7 +344,7 @@ async function listAccountStatuses() {
   return accounts
     .filter(account => account.type === "imap")
     .map(account => {
-      const email = account.identities?.[0]?.email?.toLowerCase() ?? null;
+      const email = accountEmail(account);
       return {
         id: account.id,
         name: account.name,
