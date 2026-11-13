@@ -49,7 +49,7 @@ async function readMessageAddresses(message, ownAddress, { withReplyTo = true } 
 
 async function proposeFilterAfterMove(messagesBefore, messagesAfter) {
   const settings = await loadStore("settings", {});
-  if (settings.proposeFilters === false || !messagesAfter?.length) return;
+  if (!settingEnabled(settings, "proposeFilters", false) || !messagesAfter?.length) return;
   const message = messagesAfter[0];
   const targetFolder = message.folder;
   const sourceFolder = messagesBefore?.[0]?.folder;
@@ -78,7 +78,7 @@ async function proposeFilterAfterMove(messagesBefore, messagesAfter) {
 /** Label added from the bar or the button: same suggestion as for a move. */
 async function proposeFilterForLabel(message, email, labelId) {
   const settings = await loadStore("settings", {});
-  if (settings.proposeFilters === false) return;
+  if (!settingEnabled(settings, "proposeFilters", false)) return;
   const labelsById = await listLabels(email);
   const label = labelsById.get(labelId);
   if (label?.type !== "user") return;
@@ -282,6 +282,19 @@ function notifyFiltersChanged(email) {
   browser.runtime.sendMessage({ command: "filtersChanged", email }).catch(() => {}); // no list open
 }
 
+/** Clears filter data already loaded in background memory or extension pages. */
+async function clearFilterRuntimeData(email) {
+  menuFiltersCache.delete(email);
+  dismissedProposals.clear();
+  if ([...proposals.values()].some(proposal => proposal.email === email)) {
+    proposals.clear();
+    if (proposalWindowId != null) await browser.windows.remove(proposalWindowId).catch(() => {});
+    proposalWindowId = null;
+  }
+  if (filterListTabId != null) await browser.tabs.remove(filterListTabId).catch(() => {});
+  filterListTabId = null;
+}
+
 /** existingMessages: "none" (future messages only), "inbox" or "all". */
 async function applyToExistingMessages(email, query, action, existingMessages) {
   const addLabelIds = action.addLabelIds ?? [];
@@ -323,9 +336,10 @@ async function deleteEditedFilter(proposalId) {
 
 async function ignoreProposalFolder(proposalId) {
   const { ignoreKey } = getProposal(proposalId);
-  const settings = await loadStore("settings", {});
-  const ignoredFolders = [...new Set([...(settings.ignoredFolders ?? []), ignoreKey])];
-  await browser.storage.local.set({ settings: { ...settings, ignoredFolders } });
+  await updateSettings(settings => ({
+    ...settings,
+    ignoredFolders: [...new Set([...(settings.ignoredFolders ?? []), ignoreKey])],
+  }));
   proposals.delete(proposalId);
 }
 
@@ -333,10 +347,10 @@ async function ignoreProposalFolder(proposalId) {
 async function readFilterList(email) {
   try {
     const [filters, labelsById] = await Promise.all([listFilters(email), listLabels(email)]);
-    await browser.storage.local.set({ [`filters:${email}`]: filters });
+    await browser.storage.local.set({ [accountStorageKey("filters", email)]: filters });
     return { filters, labels: [...labelsById.values()], stale: false };
   } catch (error) {
-    const storedFilters = error instanceof OfflineError ? await loadStore(`filters:${email}`, null) : null;
+    const storedFilters = error instanceof OfflineError ? await loadStore(accountStorageKey("filters", email), null) : null;
     if (!storedFilters) throw error;
     const labelsById = await listLabels(email);
     return { filters: storedFilters, labels: [...labelsById.values()], stale: true };

@@ -13,7 +13,7 @@ async function getSettings() {
 }
 
 async function saveSettings(changes) {
-  await browser.storage.local.set({ settings: { ...(await getSettings()), ...changes } });
+  await send({ command: "settingsSave", changes });
 }
 
 function setStepStatus(stepId, done) {
@@ -84,6 +84,36 @@ function createAuthorizationButton(account) {
   return button;
 }
 
+/** Deletes the authorization and every locally cached value for this account, on the second click. */
+function createForgetButton(account) {
+  const button = document.createElement("button");
+  let timer = null;
+  button.textContent = translate("forgetData");
+  button.addEventListener("click", async () => {
+    if (!timer) {
+      button.textContent = translate("forgetDataConfirm");
+      timer = setTimeout(() => {
+        timer = null;
+        button.textContent = translate("forgetData");
+      }, 4000);
+      return;
+    }
+    clearTimeout(timer);
+    button.closest("tr").querySelectorAll("button").forEach(action => (action.disabled = true));
+    element("accountError").textContent = "";
+    const result = await send({ command: "forget", email: account.email });
+    if (!result.ok) element("accountError").textContent = translate("labelAndText", account.email, result.error);
+    if (result.clientPurged) {
+      element("clientId").value = "";
+      element("clientSecret").value = "";
+      setStepStatus("step1", false);
+      setStepStatus("step2", false);
+    }
+    await renderAccounts();
+  });
+  return button;
+}
+
 /** Text and style of the status cell: an expiry date means the app is still "In testing". */
 function authorizationStatus(account) {
   const expiresAt = account.authorizationExpiresAt;
@@ -120,7 +150,7 @@ async function renderAccounts(emailToCheck = null) {
       const checkButton = document.createElement("button");
       checkButton.textContent = translate("check");
       checkButton.addEventListener("click", () => runDiagnostic(account.email, diagnosticCell));
-      actionsCell.append(createAuthorizationButton(account), " ", checkButton);
+      actionsCell.append(createAuthorizationButton(account), " ", checkButton, " ", createForgetButton(account));
     }
     row.append(statusCell, actionsCell);
     tableBody.append(row, diagnosticRow);
@@ -166,8 +196,8 @@ function setUpClientForm(settings) {
   });
 }
 
-function setUpCheckboxSetting(settingName, settings) {
-  element(settingName).checked = settings[settingName] !== false;
+function setUpCheckboxSetting(settingName, settings, defaultValue = true) {
+  element(settingName).checked = settingEnabled(settings, settingName, defaultValue);
   element(settingName).addEventListener("change", event => {
     saveSettings({ [settingName]: event.target.checked });
   });
@@ -193,9 +223,11 @@ function setUpIgnoredLabels(settings) {
   element("scopes").textContent = (await send({ command: "scopes" })).join("\n");
   setUpLinksAndCopyButtons();
   setUpClientForm(settings);
-  for (const settingName of ["showBar", "hideCategories", "proposeFilters"]) {
+  for (const settingName of ["showBar", "hideCategories"]) {
     setUpCheckboxSetting(settingName, settings);
   }
+  // Off by default: the context menu opens the same window on demand
+  setUpCheckboxSetting("proposeFilters", settings, false);
   setUpIgnoredLabels(settings);
   // Off by default, unlike the other settings
   element("preferDomain").checked = settings.preferDomain === true;

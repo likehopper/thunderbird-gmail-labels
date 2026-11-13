@@ -249,14 +249,14 @@ async function openForm(filterId) {
 }
 
 /**
- * Saves a JSON copy in the downloads folder (a link with "download" does nothing in
- * Thunderbird). Returns the file path, or null after showing the error.
+ * Saves a JSON copy through the downloads API (a link with "download" does nothing
+ * in Thunderbird). Returns the file path, or null after showing the error.
  */
-async function exportFilters(filtersToExport) {
+async function exportFilters(filtersToExport, saveAs = false) {
   const url = URL.createObjectURL(new Blob([JSON.stringify(filtersToExport, null, 2)], { type: "application/json" }));
   const time = new Date().toISOString().slice(0, 19).replace(/:/g, "-");
   try {
-    const downloadId = await browser.downloads.download({ url, filename: `gmail-filters-${email}-${time}.json`, saveAs: false });
+    const downloadId = await browser.downloads.download({ url, filename: `gmail-filters-${time}.json`, saveAs });
     const [download] = await browser.downloads.search({ id: downloadId });
     const path = download?.filename ?? "";
     setStatus(translate("exportSaved", path));
@@ -520,7 +520,7 @@ async function selectAccount(newEmail) {
 function setUpListeners() {
   element("account").addEventListener("change", event => selectAccount(event.target.value));
   element("new").addEventListener("click", () => openForm());
-  element("export").addEventListener("click", () => exportFilters(filters));
+  element("export").addEventListener("click", () => exportFilters(filters, true));
   element("undo").addEventListener("click", restoreDeletedFilters);
   element("optimize").addEventListener("click", openOptimizer);
   element("closeOptimizer").addEventListener("click", () => (element("optimizer").hidden = true));

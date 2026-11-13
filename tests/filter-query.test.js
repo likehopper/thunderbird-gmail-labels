@@ -26,49 +26,49 @@ const plain = value => JSON.parse(JSON.stringify(value));
 const labelFilter = (id, query, labelId = "Label_1") => ({ id, criteria: { query }, action: { addLabelIds: [labelId] } });
 
 test("OR searches are recognized", () => {
-  for (const query of ["{from:a@x.fr to:a@x.fr}", "from:a@x.fr OR to:a@x.fr", "from:(a@x.fr OR b@x.fr)",
-    "(from:a@x.fr)", "from:a@x.fr", "{from:(a@x.fr OR b@x.fr) to:c@x.fr}"]) {
+  for (const query of ["{from:a@x.example to:a@x.example}", "from:a@x.example OR to:a@x.example", "from:(a@x.example OR b@x.example)",
+    "(from:a@x.example)", "from:a@x.example", "{from:(a@x.example OR b@x.example) to:c@x.example}"]) {
     assert.equal(isOrSearch(query), true, query);
   }
 });
 
 test("searches needing several terms at once are not OR searches", () => {
-  for (const query of ["from:a@x.fr to:b@x.fr", "subject:(facture edf)", "{subject:(facture edf) from:x@y.fr}",
-    "{from:a@x.fr -from:b@x.fr}", "from:a@x.fr OR", ""]) {
+  for (const query of ["from:a@x.example to:b@x.example", "subject:(invoice words)", "{subject:(invoice words) from:x@y.example}",
+    "{from:a@x.example -from:b@x.example}", "from:a@x.example OR", ""]) {
     assert.equal(isOrSearch(query), false, query);
   }
 });
 
 test("OR searches split into one item per term", () => {
-  assert.deepEqual(plain(orSearchItems("from:(a@x.fr OR b@x.fr) OR to:c@x.fr")), ["from:a@x.fr", "from:b@x.fr", "to:c@x.fr"]);
-  assert.deepEqual(plain(orSearchItems('{subject:"two words" x.fr}')), ['subject:"two words"', "x.fr"]);
+  assert.deepEqual(plain(orSearchItems("from:(a@x.example OR b@x.example) OR to:c@x.example")), ["from:a@x.example", "from:b@x.example", "to:c@x.example"]);
+  assert.deepEqual(plain(orSearchItems('{subject:"two words" x.example}')), ['subject:"two words"', "x.example"]);
 });
 
 test("the form shows a search only when each value has the same fields", () => {
-  assert.deepEqual(plain(parseSimpleQuery("{from:a@x.fr cc:a@x.fr to:a@x.fr}")), { values: ["a@x.fr"], fields: ["from", "to"] });
-  assert.equal(parseSimpleQuery("{from:a@x.fr to:b@x.fr}"), null);
-  assert.equal(parseSimpleQuery("{to:a@x.fr}"), null); // to without cc
+  assert.deepEqual(plain(parseSimpleQuery("{from:a@x.example cc:a@x.example to:a@x.example}")), { values: ["a@x.example"], fields: ["from", "to"] });
+  assert.equal(parseSimpleQuery("{from:a@x.example to:b@x.example}"), null);
+  assert.equal(parseSimpleQuery("{to:a@x.example}"), null); // to without cc
 });
 
 test("the same OR terms in another order are the same search", () => {
-  assert.equal(searchKey("{from:b@x.fr from:a@x.fr}"), searchKey("from:a@x.fr OR from:b@x.fr"));
-  assert.notEqual(searchKey("from:a@x.fr to:b@x.fr"), searchKey("from:a@x.fr OR to:b@x.fr"));
+  assert.equal(searchKey("{from:b@x.example from:a@x.example}"), searchKey("from:a@x.example OR from:b@x.example"));
+  assert.notEqual(searchKey("from:a@x.example to:b@x.example"), searchKey("from:a@x.example OR to:b@x.example"));
 });
 
 test("filters with the same action merge, without the terms covered by a domain", () => {
   const groups = plain(optimizationGroups([
-    labelFilter("1", "from:a@x.fr"),
-    labelFilter("2", "{from:x.fr from:b@y.fr}"),
-    labelFilter("3", "from:c@z.fr", "Label_2"),
+    labelFilter("1", "from:a@x.example"),
+    labelFilter("2", "{from:x.example from:b@y.example}"),
+    labelFilter("3", "from:c@z.example", "Label_2"),
   ], 1500));
   assert.equal(groups.length, 1);
   assert.deepEqual(groups[0].filters.map(filter => filter.id), ["1", "2"]);
-  assert.deepEqual(groups[0].queries, ["{from:x.fr from:b@y.fr}"]);
+  assert.deepEqual(groups[0].queries, ["{from:x.example from:b@y.example}"]);
   assert.equal(groups[0].removedItems, 1);
 });
 
 test("a filter whose search needs several terms is never merged", () => {
-  const groups = optimizationGroups([labelFilter("1", "{subject:(facture edf) from:x@y.fr}"), labelFilter("2", "from:z@w.fr")], 1500);
+  const groups = optimizationGroups([labelFilter("1", "{subject:(invoice words) from:x@y.example}"), labelFilter("2", "from:z@w.example")], 1500);
   assert.equal(groups.length, 0);
 });
 
@@ -80,11 +80,21 @@ test("merged searches stay under the maximum length", () => {
   assert.deepEqual(plain(queries.flatMap(query => orSearchItems(query))), items);
 });
 
+test("an indivisible item over the limit is never optimized", () => {
+  const longItem = `subject:${"x".repeat(200)}`;
+  assert.throws(() => splitOrSearch([longItem], 100), { name: "RangeError" });
+  const groups = optimizationGroups([
+    labelFilter("1", longItem),
+    labelFilter("2", "from:a@example.com"),
+  ], 100);
+  assert.equal(groups.length, 0);
+});
+
 test("filters sharing a term but doing different things are concurrent", () => {
   const pairs = plain(concurrentFilters([
-    labelFilter("1", "from:x.fr"),
-    labelFilter("2", "from:a@x.fr", "Label_2"),
-    labelFilter("3", "from:a@x.fr"),
+    labelFilter("1", "from:x.example"),
+    labelFilter("2", "from:a@x.example", "Label_2"),
+    labelFilter("3", "from:a@x.example"),
   ]));
   assert.deepEqual(pairs.map(pair => pair.filters.map(filter => filter.id).sort().join("|")).sort(), ["1|2", "2|3"]);
 });

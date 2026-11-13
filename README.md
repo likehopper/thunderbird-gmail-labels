@@ -67,12 +67,18 @@ The setup assistant opens on first install. To open it later: *Add-ons and Theme
    Authorizations given before publishing keep that limit: the status in step 3
    shows either the expiry date, or "no time limit".
 
+*Revoke* removes Google's authorization but keeps the account's local offline data.
+*Forget local data* revokes the authorization and deletes that account's local
+message, label, filter, recent-label, ignored-folder and queued-change data. Forgetting
+the last authorized account also removes the shared OAuth client ID and secret.
+
 ## Filter suggestions
 
-Moving a message to a label's folder, or adding a personal label from the bar or the
-button, opens a "Create a Gmail filter?" window. The same window opens from
 *Create a Gmail filter…* in the context menu of a message (message list or message
-itself), with the label of its folder preselected:
+itself) opens a "Create a Gmail filter?" window, with the label of its folder
+preselected. If enabled in the setup page (off by default), the same window also
+opens by itself when a message is moved to a label's folder, or when a personal label
+is added from the bar or the button:
 
 - **Criterion**: addresses or domains of the message, or free keywords separated by
   `|`. Several checked values are combined with OR.
@@ -104,7 +110,7 @@ again* can be reset in the setup page.
 message) lists the filters of an
 account, with their label, criteria, actions and number of messages. You can search,
 sort and filter them by label, action, field or state (duplicate, deleted label,
-forwarding), and export them as JSON.
+forwarding), and export them as JSON. A manual export asks where to save the file.
 
 - **Edit** reuses the filter window. Gmail cannot update a filter: the extension
   creates the new one, then deletes the old one, so the filter gets a new id. Criteria
@@ -113,7 +119,8 @@ forwarding), and export them as JSON.
   addresses or subject (exact for OR searches, approximate otherwise) and opens one in
   the same window.
 - **Delete** asks to click twice, and can be undone from the page while it stays open.
-  Deleting a selection first downloads a JSON copy of it. The edition window can also
+  Deleting a selection first downloads a JSON copy of it to the default Downloads
+  folder. The edition window can also
   delete its filter (twice too, without undo).
 - Changing or deleting a filter does not change messages already filed.
 - **Optimize** merges the filters doing exactly the same thing (label, category,
@@ -134,6 +141,8 @@ forwarding), and export them as JSON.
 - Changes are queued, shown with a dashed outline, then replayed in order when the
   network is back. If the same message changed elsewhere in the meantime, the last
   change applied wins.
+- A queued change rejected permanently by Gmail is removed and reported in the label
+  bar and popup until a later change succeeds.
 - A message never viewed online falls back on the locally synced IMAP folders,
   read-only.
 
@@ -142,8 +151,9 @@ prevent the extension from reaching Google.
 
 ## Privacy and permissions
 
-The extension only talks to Google, with your own OAuth client: there is no other
-server, and no analytics.
+The extension only talks automatically to Google, with your own OAuth client, and to
+GitHub for beta updates: there is no analytics or application server. Setup and help
+buttons open the documented Google, GitHub or Thunderbird pages in your browser.
 
 | Permission | Why |
 | --- | --- |
@@ -156,8 +166,19 @@ server, and no analytics.
 | `downloads` | Save the JSON copies of the filters (export, before a bulk deletion or an optimization) |
 | `identity`, `storage` | Sign in to Google, keep settings and offline data |
 
-The refresh token and client secret are stored **unencrypted** in your Thunderbird
-profile (`storage.local`).
+The following data is stored **unencrypted** in your Thunderbird profile
+(`storage.local`):
+
+- the OAuth client ID and secret, and one refresh token per authorized account;
+- account addresses, Gmail label names and colors, recent labels and Gmail filters;
+- for offline use, Message-ID values, Gmail message IDs, label IDs and queued changes;
+- the date and HTTP status of the latest queued change rejected by Gmail, without the
+  address, Message-ID, label, request or server error text.
+
+Offline message data is kept for at most 180 days and 10,000 messages. Label, filter
+and recent-label caches remain until *Forget local data* or the extension is
+uninstalled. JSON exports and automatic backups contain the selected Gmail filter
+criteria and actions in clear text outside the Thunderbird profile.
 
 ## Troubleshooting
 
@@ -192,7 +213,7 @@ for the console messages, then
 ./build.sh          # creates dist/thunderbird-gmail-labels-<version>.xpi
 ./build.sh --beta   # same, with the update_url of the beta channel
 ./release.sh        # publishes the manifest's version (from main or beta, with a clean tree)
-node --test         # tests of the search logic (Node 18 or later, no dependency)
+node --test         # search, optimizer, storage and privacy tests (Node 18+, no dependency)
 ```
 
 Work happens on the `beta` branch, with versions like `1.2.0b1`:

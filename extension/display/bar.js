@@ -173,6 +173,12 @@
       default:
         bar.append(createElement("span", "gml-note", translate("barError", state.error)));
     }
+    if (state.changeFailure) {
+      const text = state.changeFailure.status
+        ? translate("changeFailedStatus", state.changeFailure.status)
+        : translate("changeFailed");
+      bar.append(createElement("span", "gml-note", text));
+    }
   }
 
   const loadLabels = () => sendAndRender({ command: "state", includeChoices: true });

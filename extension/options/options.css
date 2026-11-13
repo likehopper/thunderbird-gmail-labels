@@ -95,7 +95,7 @@ td {
 }
 
 td.actions {
-  white-space: nowrap;
+  white-space: normal;
 }
 
 td[colspan] {

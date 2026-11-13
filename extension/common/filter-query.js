@@ -227,6 +227,7 @@ function splitOrSearch(items, maxLength) {
   let current = [];
   const asQuery = list => list.length > 1 ? `{${list.join(" ")}}` : list[0];
   for (const item of items) {
+    if (item.length > maxLength) throw new RangeError("A search item exceeds the maximum length");
     if (current.length && asQuery([...current, item]).length > maxLength) {
       queries.push(asQuery(current));
       current = [];
@@ -244,7 +245,9 @@ function splitOrSearch(items, maxLength) {
  */
 function optimizationGroups(filters, maxLength) {
   const filtersByAction = new Map();
-  for (const filter of filters.filter(isMergeableFilter)) {
+  const mergeableFilters = filters.filter(filter =>
+    isMergeableFilter(filter) && orSearchItems(filter.criteria.query).every(item => item.length <= maxLength));
+  for (const filter of mergeableFilters) {
     const key = actionKey(filter.action);
     filtersByAction.set(key, [...(filtersByAction.get(key) ?? []), filter]);
   }

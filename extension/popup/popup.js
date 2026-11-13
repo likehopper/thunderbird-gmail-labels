@@ -84,6 +84,9 @@ function render() {
     renderUnavailableState();
     return;
   }
+  if (state.changeFailure) setStatus(state.changeFailure.status
+    ? translate("changeFailedStatus", state.changeFailure.status)
+    : translate("changeFailed"));
 
   element("manageFilters").hidden = false;
   const typedText = element("filter").value.trim();

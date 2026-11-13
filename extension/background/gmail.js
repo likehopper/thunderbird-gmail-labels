@@ -27,6 +27,18 @@ async function loadStore(key, fallback) {
   return stored[key] ?? fallback;
 }
 
+let settingsWrite = Promise.resolve();
+
+/** Serializes settings read-change-write operations so one page cannot restore stale values. */
+function updateSettings(change) {
+  settingsWrite = settingsWrite.catch(() => {}).then(async () => {
+    const settings = await loadStore("settings", {});
+    const updated = typeof change === "function" ? change(settings) : { ...settings, ...change };
+    await browser.storage.local.set({ settings: updated });
+  });
+  return settingsWrite;
+}
+
 function base64UrlEncode(bytes) {
   return btoa(String.fromCharCode(...new Uint8Array(bytes)))
     .replace(/\+/g, "-")
@@ -198,13 +210,13 @@ async function listLabels(email, bypassCache = false) {
     labels = (await gmailRequest(email, "/labels")).labels ?? [];
   } catch (error) {
     // Offline: use the last known list, without caching it in memory
-    const storedLabels = error instanceof OfflineError ? await loadStore(`labels:${email}`, null) : null;
+    const storedLabels = error instanceof OfflineError ? await loadStore(accountStorageKey("labels", email), null) : null;
     if (!storedLabels) throw error;
     return new Map(storedLabels.map(label => [label.id, label]));
   }
   const labelsById = new Map(labels.map(label => [label.id, label]));
   labelListCache.set(email, { fetchedAt: Date.now(), labelsById });
-  await browser.storage.local.set({ [`labels:${email}`]: labels });
+  await browser.storage.local.set({ [accountStorageKey("labels", email)]: labels });
   return labelsById;
 }
 

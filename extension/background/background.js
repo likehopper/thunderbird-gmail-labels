@@ -159,7 +159,7 @@ async function labelChoices(email, labelsById, settings) {
   const userLabelIds = [...labelsById.values()].filter(label => label.type === "user").map(label => label.id);
   const allLabels = sortLabels([...REMOVABLE_SYSTEM_LABEL_IDS, ...userLabelIds]
     .map(id => describeLabel(id, labelsById, settings)));
-  const recentLabelIds = (await loadStore(`recent:${email}`, [])).filter(id => labelsById.has(id));
+  const recentLabelIds = (await loadStore(accountStorageKey("recent", email), [])).filter(id => labelsById.has(id));
   return { allLabels, recentLabelIds };
 }
 
@@ -212,7 +212,8 @@ async function getLabelState(tabId, { includeChoices = false, bypassCache = fals
 async function getDisplayState(tabId, options) {
   const settings = await loadStore("settings", {});
   const state = await getLabelState(tabId, options);
-  return { ...state, showBar: settings.showBar !== false };
+  const changeFailure = state.email ? await loadChangeFailure(state.email) : null;
+  return { ...state, showBar: settings.showBar !== false, changeFailure };
 }
 
 const findLabelByName = (labelsById, name) =>
@@ -238,6 +239,7 @@ async function applyChangeOnline({ email, headerMessageId, addLabelIds, removeLa
   const entry = { gmailId: found.gmailId, labelIds, updatedAt: Date.now() };
   messageCache.set(key, entry);
   await saveMessageState(key, entry);
+  await clearChangeFailure(email);
   return entry;
 }
 
@@ -250,12 +252,16 @@ function replayPendingChanges() {
     for (let queue = await loadPendingChanges(); queue.length; queue = await loadPendingChanges()) {
       const oldestChange = queue[0];
       try {
-        await applyChangeOnline(oldestChange);
+        if (!await applyChangeOnline(oldestChange)) {
+          const error = new Error(translate("errNotFound"));
+          error.status = 404;
+          throw error;
+        }
       } catch (error) {
         // Retried later: no network, no authorization, or Gmail busy or failing for now
-        const isTemporary = error.status >= 500 || error.status === 429;
-        if (error instanceof OfflineError || error instanceof AuthError || isTemporary) break;
-        console.warn("Gmail Labels: change dropped", oldestChange, error);
+        if (isRetryableChangeError(error)) break;
+        await recordChangeFailure(oldestChange.email, error);
+        console.warn("Gmail Labels: queued change dropped", sanitizedChangeError(error));
       }
       await removeOldestChange();
       replayedCount++;
@@ -327,10 +333,27 @@ async function changeLabels(tabId, { addLabelIds = [], removeLabelIds = [], addL
 /** Keeps the most recently added labels for each account; they are offered first. */
 async function rememberRecentLabels(email, labelIds) {
   if (!labelIds.length) return;
-  const storageKey = `recent:${email}`;
+  const storageKey = accountStorageKey("recent", email);
   const recentLabelIds = await loadStore(storageKey, []);
   const updatedLabelIds = [...labelIds, ...recentLabelIds.filter(id => !labelIds.includes(id))];
   await browser.storage.local.set({ [storageKey]: updatedLabelIds.slice(0, MAX_RECENT_LABELS) });
+}
+
+async function forgetAccount(email) {
+  const accountIds = (await browser.accounts.list(false))
+    .filter(account => accountEmail(account) === email)
+    .map(account => account.id);
+  await revoke(email);
+  await purgeAccountData(email, accountIds);
+  const clientPurged = await purgeUnusedOAuthClient();
+  for (const map of [messageCache, gmailMessageIds, pendingLookups]) {
+    for (const key of map.keys()) if (key.startsWith(`${email}|`)) map.delete(key);
+  }
+  await clearFilterRuntimeData(email);
+  for (const tab of await browser.tabs.query({})) {
+    browser.tabs.sendMessage(tab.id, { command: "refresh" }).catch(() => {});
+  }
+  return { clientPurged };
 }
 
 window.addEventListener("online", () => replayPendingChanges());
@@ -377,6 +400,12 @@ browser.runtime.onMessage.addListener((request, sender) => {
         error => ({ ok: false, error: error.message }));
     case "revoke":
       return revoke(request.email).then(() => ({ ok: true }));
+    case "forget":
+      return forgetAccount(request.email).then(
+        result => ({ ok: true, ...result }),
+        error => ({ ok: false, error: error.message }));
+    case "settingsSave":
+      return updateSettings(request.changes).then(() => ({ ok: true }));
     case "openOptions":
       return browser.runtime.openOptionsPage();
   }
